@@ -44,6 +44,9 @@ all: build
 ## This target is intentionally phony because VERSION, BUILD_DATE, and
 ## BUILD_COMMIT are build inputs rather than filesystem prerequisites.  Rebuilding
 ## prevents development metadata from leaking into a later release artifact.
+## Full-line comments are stripped from maintained adrctl source during assembly,
+## following the Bootstrap distribution pattern.  The pinned mktext artifact is
+## embedded unchanged and is deliberately excluded from that filtering step.
 build: $(SOURCE_FILES) $(MKTEXT_ARTIFACT)
 	mkdir -p "$(DIST_DIR)"
 	{ \
