@@ -197,6 +197,8 @@ __adrctl_help_text() {
         printf -v __adrctl_local_built_text '%s\n' \
           "Usage: ${__adrctl_local_invoked} generate graph [-p LINK_PREFIX] [-e LINK_EXTENSION]"
       elif [[ -n ${2-} ]]; then
+        # Runtime defines this cross-module exit status before command dispatch.
+        # shellcheck disable=SC2154
         return "${__adrctl_exit_usage}"
       else
         printf -v __adrctl_local_built_text '%s\n' \
@@ -212,6 +214,8 @@ __adrctl_help_text() {
         "Usage: ${__adrctl_local_invoked} upgrade-repository"
       ;;
     *)
+      # Runtime defines this cross-module exit status before command dispatch.
+      # shellcheck disable=SC2154
       return "${__adrctl_exit_usage}"
       ;;
   esac
@@ -259,6 +263,8 @@ __adrctl_command_list() {
   for __adrctl_local_path in "${__adrctl_local_files[@]}"; do
     __adrctl_display_path "${__adrctl_local_path}" __adrctl_local_display || \
       __adrctl_local_display="${__adrctl_local_path}"
+    # Runtime defines this cross-module exit status before command dispatch.
+    # shellcheck disable=SC2154
     printf '%s\n' "${__adrctl_local_display}" || return "${__adrctl_exit_operational}"
   done
 }
@@ -272,6 +278,7 @@ __adrctl_command_list() {
 __adrctl_command_init() {
   local __adrctl_local_directory_arg
   local __adrctl_local_directory_set
+  local __adrctl_local_project_root
   local __adrctl_local_target_dir
   local __adrctl_local_marker_value
   local __adrctl_local_marker_temp
@@ -294,6 +301,9 @@ __adrctl_command_init() {
   __adrctl_local_directory_arg="${1-}"
   __adrctl_local_directory_set=0
   [[ $# -eq 1 ]] && __adrctl_local_directory_set=1
+  # Project discovery assigns this cross-module state before command dispatch.
+  # shellcheck disable=SC2154
+  __adrctl_local_project_root="${__adrctl_project_root}"
 
   if (( __adrctl_local_directory_set )); then
     if [[ -z ${__adrctl_local_directory_arg} ]]; then
@@ -301,7 +311,7 @@ __adrctl_command_init() {
       return $?
     fi
     __adrctl_local_target_dir="$(__adrctl_join_path \
-      "${__adrctl_project_root}" "${__adrctl_local_directory_arg}")"
+      "${__adrctl_local_project_root}" "${__adrctl_local_directory_arg}")"
     __adrctl_local_marker_value="${__adrctl_local_directory_arg}"
   else
     __adrctl_local_target_dir="${__adrctl_adr_dir}"
@@ -353,8 +363,8 @@ __adrctl_command_init() {
   fi
 
   if (( __adrctl_local_directory_set )); then
-    __adrctl_local_marker_target="${__adrctl_project_root}/.adr-dir"
-    __adrctl_local_marker_temp="${__adrctl_project_root}/.adr-dir.adrctl.$$.$RANDOM.tmp"
+    __adrctl_local_marker_target="${__adrctl_local_project_root}/.adr-dir"
+    __adrctl_local_marker_temp="${__adrctl_local_project_root}/.adr-dir.adrctl.$$.$RANDOM.tmp"
     if ! printf '%s\n' "${__adrctl_local_marker_value}" >"${__adrctl_local_marker_temp}"; then
       rm -f "${__adrctl_local_prepared}" "${__adrctl_local_marker_temp}"
       __adrctl_fail_operational "cannot prepare ${__adrctl_local_marker_target}"
@@ -472,6 +482,8 @@ __adrctl_command_new() {
   local -a prepared_temps
   local -A target_links
   local -A target_remove
+  # The render context is populated and consumed by variable name through mktext.
+  # shellcheck disable=SC2034
   local -A context
 
   declare -a superseded_refs=()
@@ -699,7 +711,7 @@ __adrctl_command_new() {
   if (( ${#new_links[@]} > 0 )); then
     __adrctl_temp_path "${destination}" new new_temp
     if ! __adrctl_prepare_status_mutation \
-      "${raw_temp}" "${new_temp}" '' new_links; then
+      "${raw_temp}" "${new_temp}" '' "${new_links[@]}"; then
       rm -f "${raw_temp}" "${new_temp}"
       __adrctl_fail_operational 'new ADR template has no usable ## Status section'
       return $?
@@ -713,7 +725,7 @@ __adrctl_command_new() {
     __adrctl_decode_lines "${target_links[${path}]-}" decoded_links
     __adrctl_temp_path "${path}" existing temp
     if ! __adrctl_prepare_status_mutation \
-      "${path}" "${temp}" "${target_remove[${path}]-}" decoded_links; then
+      "${path}" "${temp}" "${target_remove[${path}]-}" "${decoded_links[@]}"; then
       rm -f "${new_temp}" "${prepared_temps[@]}" "${temp}"
       __adrctl_fail_operational "cannot prepare ADR mutation: ${path##*/}"
       return $?
@@ -762,8 +774,8 @@ __adrctl_command_link() {
   local reverse_line
   local source_temp
   local target_temp
-  local -a source_links
-  local -a target_links
+  local -a source_relationship_lines
+  local -a target_relationship_lines
 
   if (( $# != 4 )); then
     __adrctl_fail_usage 'link expects SOURCE LINK TARGET REVERSE-LINK'
@@ -796,9 +808,10 @@ __adrctl_command_link() {
   }
 
   if [[ ${source} == "${target}" ]]; then
-    declare -a source_links=("${forward_line}" "${reverse_line}")
+    source_relationship_lines=("${forward_line}" "${reverse_line}")
     __adrctl_temp_path "${source}" link source_temp
-    if ! __adrctl_prepare_status_mutation "${source}" "${source_temp}" '' source_links; then
+    if ! __adrctl_prepare_status_mutation \
+      "${source}" "${source_temp}" '' "${source_relationship_lines[@]}"; then
       rm -f "${source_temp}"
       __adrctl_fail_operational "cannot prepare ADR mutation: ${source##*/}"
       return $?
@@ -810,17 +823,19 @@ __adrctl_command_link() {
     return 0
   fi
 
-  declare -a source_links=("${forward_line}")
-  declare -a target_links=("${reverse_line}")
+  source_relationship_lines=("${forward_line}")
+  target_relationship_lines=("${reverse_line}")
   __adrctl_temp_path "${source}" source source_temp
   __adrctl_temp_path "${target}" target target_temp
 
-  if ! __adrctl_prepare_status_mutation "${source}" "${source_temp}" '' source_links; then
+  if ! __adrctl_prepare_status_mutation \
+    "${source}" "${source_temp}" '' "${source_relationship_lines[@]}"; then
     rm -f "${source_temp}" "${target_temp}"
     __adrctl_fail_operational "cannot prepare ADR mutation: ${source##*/}"
     return $?
   fi
-  if ! __adrctl_prepare_status_mutation "${target}" "${target_temp}" '' target_links; then
+  if ! __adrctl_prepare_status_mutation \
+    "${target}" "${target_temp}" '' "${target_relationship_lines[@]}"; then
     rm -f "${source_temp}" "${target_temp}"
     __adrctl_fail_operational "cannot prepare ADR mutation: ${target##*/}"
     return $?
