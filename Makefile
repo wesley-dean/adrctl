@@ -102,19 +102,13 @@ verify-mktext: $(MKTEXT_ARTIFACT)
 		exit 1; \
 	fi
 
-## Validate maintained Bash source.
+## Validate all maintained Bash source.
 ##
-## The modules are concatenated in the explicit build order above.  ShellCheck
-## analyzes source files independently, so modules that intentionally consume
-## private globals from earlier modules need SC2154 excluded for that file.  The
-## command layer also passes caller-owned arrays by variable name to nameref
-## helpers, which ShellCheck cannot follow statically; SC2034/SC2190 are excluded
-## only for that module.  All other ShellCheck diagnostics remain enabled.
+## The same SOURCE_FILES list drives parser validation, ShellCheck, formatting,
+## and artifact assembly so newly added Bash modules cannot silently escape checks.
 check:
 	bash -n $(SOURCE_FILES)
-	shellcheck lib/runtime.bash lib/config.bash lib/project.bash $(ENTRYPOINT)
-	shellcheck -e SC2154 lib/render.bash lib/adr.bash
-	shellcheck -e SC2034,SC2154,SC2190 lib/commands.bash
+	shellcheck $(SOURCE_FILES)
 
 ## Format maintained Bash source using the project formatter contract.
 format:
