@@ -1,88 +1,340 @@
-# template
+# adrctl
 
-## Description
+`adrctl` is a Bash tool for creating and maintaining Architecture Decision
+Records (ADRs).  It is a deliberate successor to
+[`npryce/adr-tools`](https://github.com/npryce/adr-tools) that preserves familiar
+workflows where practical while improving configuration safety, failure
+preflight, testing, documentation, and release discipline.
 
-This is a template for a README.md file. It is a markdown file that is used to
-describe a project. It is used to provide information about the project to the
-users and contributors. It is a good practice to have a README.md file in your
-project repository.
+The canonical executable is `adrctl`.  The same generated artifact is designed to
+work through an `adr` symbolic link for command-name compatibility with existing
+`adr-tools` habits and automation.
 
-## Usage
+## Status
 
-You can use this template to create a README.md file for your project. You can
+`adrctl` is under active initial development.  The current implementation and
+behavioral specification live on the development branch until the initial ADR
+set, compatibility corpus, documentation, and release workflow are complete.
 
-- Clone this repository
-- Copy the README.md file to your project repository
-- Edit the file to add information about your project
+The compatibility baseline is `adr-tools` 3.0.0.  Intentional deviations are
+documented in the ADRs and in `doc/adrctl-spec.md` rather than being hidden in
+implementation details.
 
-### Environment Variables
+## Requirements
 
-There are three environment variables that need to be set for this project to
-work correctly:
+Runtime requirements are intentionally small:
 
-- `PAT` - Your GitHub Personal Access Token
-- `GPG_PRIVATE_KEY` - Your GPG Private Key
-- `GPG_PRIVATE_KEY_PASSPHRASE` - Your GPG Private Key Passphrase
+- Bash 4.3 or newer
+- ordinary filesystem access appropriate to the requested operation
+- Git only when Git-root fallback is needed for project discovery
 
-The `PAT` environment variable is used by MegaLinter to authenticate with the
-GitHub API. The `GPG_PRIVATE_KEY` and `GPG_PRIVATE_KEY_PASSPHRASE` environment
-variables are used to sign the commits that MegaLinter creates when
-`APPLY_FIXES` is set to `true`.
+Graph generation emits Graphviz DOT text and does not require Graphviz itself.
+Template rendering is provided by a verified `mktext` dependency embedded into
+the generated executable at build time, so normal runtime operation does not
+fetch code from the network.
 
-If the MegaLinter action is disabled, none of these environment variables are
-required.
+## Build
 
-### Conventional Commits
+The maintained implementation is modular Bash source under `lib/` and `src/`.
+Make assembles the exact consumer artifact:
 
-This project uses Conventional Commits. Conventional Commits is a specification
-for adding human and machine readable meaning to commit messages. It is a
-lightweight convention on top of commit messages. The specification can be
-found at [conventionalcommits.org](https://www.conventionalcommits.org/).
+```text
+dist/adrctl
+```
 
-Specifically, this project uses the
-[bitshifted/git-auto-semver](https://github.com/bitshifted/git-auto-semver)
-action to automatically increment the version number based on the commit
-messages:
+Build it with:
 
+```bash
+make build
+```
 
-- `build`, `chore`, `ci`, `docs`, `fix`, `perf`, `refactor`, `revert`,
-  `style`, `test`: bump micro (patch) number
-- `feat`: bump minor version number
-- `BREAKING CHANGE`: bump major version number
+The build acquires `mktext` v0.0.6 when necessary and verifies its published
+SHA-256 digest before embedding it unchanged.
+
+The generated artifact is build output rather than maintained source.  Do not
+edit `dist/adrctl` directly.
+
+## Installation
+
+A built or released `adrctl` file can be placed anywhere on `PATH`.
+
+To retain the historical `adr` command name, create a symbolic link to the same
+artifact, for example:
+
+```bash
+ln -s adrctl adr
+```
+
+`adrctl` remains the canonical product and release identity.  The `adr` name is a
+supported invocation alias rather than a separate compatibility executable.
+
+## Commands
+
+The initial public command surface is:
+
+```text
+adrctl init [DIRECTORY]
+adrctl new [-s REFERENCE]... [-l TARGET:LINK:REVERSE-LINK]... [OPTIONS] TITLE...
+adrctl link SOURCE LINK TARGET REVERSE-LINK
+adrctl list
+adrctl generate [toc|graph] [OPTIONS]
+adrctl upgrade-repository
+adrctl help [COMMAND [SUBCOMMAND...]]
+adrctl --version
+```
+
+The same commands work with `adr` substituted for `adrctl` when using the
+supported symlink.
+
+### Initialize a repository
+
+From the directory that should own the ADR project:
+
+```bash
+adrctl init
+```
+
+The default ADR directory is `doc/adr`.
+
+To use another directory while retaining the legacy compatibility marker:
+
+```bash
+adrctl init decisions
+```
+
+This creates `.adr-dir` containing `decisions` and creates the first ADR without
+opening an editor.
+
+### Create an ADR
+
+```bash
+adrctl new "Use PostgreSQL"
+```
+
+By default, ADR filenames preserve the established four-digit numbering pattern:
+
+```text
+0001-use-postgresql.md
+```
+
+The created pathname is written to standard output so the command remains useful
+in shell automation.
+
+Existing ADRs may be superseded:
+
+```bash
+adrctl new -s 12 "Replace the original caching strategy"
+```
+
+Arbitrary reciprocal relationships use the inherited three-field form:
+
+```bash
+adrctl new \
+  -l '12:Depends on:Required by' \
+  "Introduce a shared cache"
+```
+
+### Link existing ADRs
+
+```bash
+adrctl link 12 'Depends on' 18 'Required by'
+```
+
+Both references are resolved before either document is replaced.  Ambiguous
+partial references fail rather than selecting an arbitrary first match.
+
+### Generate reports
+
+Generate a Markdown table of contents:
+
+```bash
+adrctl generate toc
+```
+
+Generate Graphviz DOT source:
+
+```bash
+adrctl generate graph
+```
+
+`adrctl` does not invoke Graphviz automatically.  DOT output can be piped to a
+renderer separately when desired.
+
+## Project Discovery
+
+For commands that operate on an existing project, `adrctl` selects the project
+root in this order:
+
+1. `--project-root PATH`
+2. process-environment `ADRCTL_PROJECT_ROOT`
+3. nearest recognized ancestor marker
+4. Git work-tree root
+5. current working directory
+
+Recognized ancestor markers are:
+
+- `.adr-dir`
+- an existing `doc/adr` directory
+- `.env` containing an `ADRCTL_` assignment
+
+An unrelated application `.env` does not establish `adrctl` context.  A
+namespaced but invalid `ADRCTL_` assignment does establish context and then fails
+validation so configuration mistakes cannot be silently skipped.
+
+`init` is intentionally different: without an explicit root override, it uses
+the current working directory instead of climbing to a Git ancestor.
+
+## Configuration
+
+Project configuration lives in `.env` at the resolved project root and is parsed
+as data.  It is never sourced or evaluated as shell code.
+
+Initial project keys are:
+
+```text
+ADRCTL_ADR_DIR
+ADRCTL_TEMPLATE
+ADRCTL_FILENAME_PATTERN
+ADRCTL_TEMPLATE_START_DELIMITER
+ADRCTL_TEMPLATE_END_DELIMITER
+```
+
+`ADRCTL_PROJECT_ROOT` is a process-environment or command-line concern and is not
+valid inside project `.env` configuration.
+
+General precedence for project-scoped settings is:
+
+```text
+command line
+process environment
+project .env
+compatible legacy metadata
+built-in default
+```
+
+Relative configured paths resolve against the project root.
+
+## Templates
+
+Existing `adr-tools` body templates using bare tokens such as:
+
+```text
+NUMBER
+TITLE
+DATE
+STATUS
+```
+
+remain supported.
+
+Modern templates may use braced tokens such as:
+
+```text
+{NUMBER}
+{TITLE}
+{DATE}
+{STATUS}
+```
+
+When no explicit body-template delimiter pair is configured, `adrctl` looks for
+a recognized braced token whose key exists in the prepared render context.  If
+one exists, `{` and `}` are selected.  Otherwise, empty delimiters select legacy
+bare-token rendering.
+
+Custom body delimiters are available with:
+
+```text
+--start-delimiter STRING
+--end-delimiter STRING
+```
+
+Both options are supplied as a pair.  Two empty strings explicitly select legacy
+bare-token body rendering.
+
+Filename patterns are a separate rendering surface and retain the stable braced
+`{KEY}` grammar.  The default is:
+
+```text
+{NUMBER4}-{TITLE_SLUG}.md
+```
+
+## Safety and Compatibility
+
+`adrctl` preserves successful predecessor workflows where practical while
+intentionally refusing several unsafe or accidental legacy behaviors.
+
+In particular:
+
+- configuration is parsed as data instead of evaluated as shell code;
+- ambiguous ADR references fail instead of selecting the first match;
+- multi-file operations preflight the complete intended change before writing;
+- existing files use atomic per-file replacement where practical;
+- newly allocated filenames are not overwritten if another process claims them;
+- external `adr-*` or `adrctl-*` plugin discovery is not supported initially;
+- Git state is not staged or committed automatically; and
+- diagnostics are kept off script-facing standard output.
+
+The project does not promise true cross-file filesystem transactions or guaranteed
+multi-process sequential number allocation.
+
+## Development
+
+The canonical contributor workflow is documented in `AGENTS.md`.
+
+Useful Make targets include:
+
+```bash
+make build
+make check
+make test
+make test-report
+make format
+make docs
+make docs-stage
+make checksums
+make clean
+make distclean
+```
+
+The behavior suite exercises the generated artifact rather than assuming that
+valid individual source modules imply a valid assembled executable.  CI also runs
+a consumer harness under Bash 4.3.
 
 ## Documentation
 
-### Architecture Decision Records (ADRs)
+Project documentation is deliberately split by responsibility:
 
-This project is configured to use [Nat Pryce's](https://github.com/npryce)
-[adr-tools](https://github.com/npryce/adr-tools) project.  There is a template
-at `doc/adrs/templates/template.md` which can be edited at-will.  The ADR
-template is built to support both human and machine (AI/LLM)-produced and
-maintained ADRs.  The configuration file, `.adr-dir` resides at the root of
-the project and may be updated if ADRs are to be stored in an alternate
-directory.
+- `README.md` - human-facing product orientation and use
+- `AGENTS.md` - contributor and coding-agent guidance
+- `doc/adr/` - architecture decisions and rationale
+- `doc/adrctl-spec.md` - normative behavioral specification
+- `doc/reference/` - generated source-reference documentation
+- source comments - implementation contracts and invariants
 
-For more information about ADRs, check out
-[Michael Nygard](https://cognitect.com/authors/MichaelNygard.html)'s
-[article](https://cognitect.com/blog/2011/11/15/documenting-architecture-decisions)
-on the topic.
+The initial architecture and compatibility analysis is also retained under
+`doc/` for provenance and future maintenance.
+
+## Release Model
+
+Releases use Semantic Versioning and publish one canonical `adrctl` artifact.
+Release validation builds and tests the exact artifact, generates a SHA-256
+checksum, and produces GitHub provenance attestation when supported by the
+release platform.
 
 ## License
 
-This project is licensed under the Creative Commons License 1.0 Universal
-License - see the [LICENSE](LICENSE) file for details.
+`adrctl` is dedicated to the public domain under CC0 1.0 Universal.  See
+[LICENSE](LICENSE).
+
+The upstream `adr-tools` implementation is GPL-licensed.  `adrctl` production
+source is independently authored against documented behavior and compatibility
+evidence; upstream implementation code is not copied or mechanically translated
+into this repository.
 
 ## Contributing
 
-Contributions are welcome. Please read the [CONTRIBUTING.md](CONTRIBUTING.md)
-file for details.
+Contributions are welcome.  Review [CONTRIBUTING.md](CONTRIBUTING.md),
+[AGENTS.md](AGENTS.md), the relevant ADRs, and the behavioral specification before
+making substantial changes.
 
-### Code of Conduct
-
-Please read the [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) file for details on
-the code of conduct.  Long story short, be nice to each other and treat each
-other with respect, compassion, and empathy, especially when you disagree.
-
-## Authors
-
-- Wes Dean
+Please also follow the project [Code of Conduct](CODE_OF_CONDUCT.md).
