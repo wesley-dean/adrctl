@@ -35,12 +35,20 @@ consuming an already-established one.  Preserving predecessor behavior means
 `init` should use the directory the user intentionally initializes rather than
 silently climbing to a Git ancestor merely because no ADR marker exists yet.
 
+A namespaced configuration typo needs special treatment during discovery.  If an
+ancestor `.env` contains an `ADRCTL_` assignment that is misspelled or invalid for
+project-file use, skipping that file as though it were unrelated would hide the
+configuration error and could select a different ancestor project.  Claiming the
+`ADRCTL_` namespace is therefore enough to establish context; full validation
+happens after that root is selected.
+
 ## Decision Drivers
 
 - Preserve nested-directory invocation from `adr-tools`.
 - Preserve legacy `.adr-dir` projects without mandatory migration.
 - Support explicit `ADRCTL_` project configuration.
 - Avoid treating unrelated application `.env` files as `adrctl` markers.
+- Keep configuration typos visible rather than silently skipping them.
 - Keep root selection deterministic, inspectable, and overrideable.
 - Resolve project-relative paths consistently from one root.
 - Avoid sourcing configuration as shell code.
@@ -62,15 +70,21 @@ A recognized project marker is any of the following:
 
 - a `.adr-dir` file;
 - an existing `doc/adr` directory;
-- a `.env` file containing at least one syntactically recognizable supported
-  project-scoped `ADRCTL_` directive.
+- a `.env` file containing at least one syntactically valid assignment whose key
+  begins with `ADRCTL_`.
 
-`ADRCTL_PROJECT_ROOT` is not project-scoped configuration and SHALL NOT, by
-itself, cause a `.env` file to become an `adrctl` project marker.  It is a
-command/process input as defined by ADR-009.
+A `.env` file that contains no `ADRCTL_` assignment SHALL NOT establish `adrctl`
+project context.
 
-An arbitrary `.env` that contains no supported project-scoped `ADRCTL_` directive
-SHALL NOT establish `adrctl` project context.
+The marker test intentionally does not decide whether the `ADRCTL_` key is
+supported.  After the nearest root is selected, the project configuration parser
+SHALL reject unknown `ADRCTL_` keys and SHALL reject `ADRCTL_PROJECT_ROOT` because
+that setting is valid only as a command/process override under ADR-009.
+
+This means an `.env` containing only a misspelled `ADRCTL_` key, or containing
+`ADRCTL_PROJECT_ROOT`, still establishes the nearest project context and then
+fails configuration validation.  It SHALL NOT be silently skipped in favor of a
+more distant ancestor.
 
 When multiple recognized markers exist at different ancestor levels, the nearest
 ancestor containing any recognized marker SHALL win.  Marker type SHALL NOT
@@ -127,11 +141,19 @@ This was rejected because `.env` is a common application configuration filename
 with no inherent relationship to ADR tooling.  An unrelated nearer `.env` could
 silently redirect project discovery.
 
+### Mark only .env files containing already-supported ADRCTL_ keys
+
+This was rejected because a misspelled or source-inappropriate namespaced key
+would then make the file disappear during discovery.  The user has already
+claimed the `ADRCTL_` namespace; selecting that root and reporting the invalid key
+is safer than silently searching past it.
+
 ### Let ADRCTL_PROJECT_ROOT inside .env redirect discovery
 
 This was rejected because the root must already be known before `adrctl` can
 choose which `.env` to read.  Root overrides therefore remain command/process
-inputs and do not create recursive discovery semantics.
+inputs.  A project file containing that key establishes context through the
+namespace claim and then fails validation rather than redirecting discovery.
 
 ### Use only a new dedicated adrctl configuration filename
 
@@ -171,6 +193,9 @@ nested directories.
 New projects can use namespaced `.env` configuration without unrelated `.env`
 files hijacking discovery.
 
+A malformed or unknown `ADRCTL_` assignment cannot be hidden merely by invoking
+`adrctl` from a deeper directory.
+
 The implementation needs one explicit upward-discovery routine and a strict
 configuration parser.
 
@@ -181,8 +206,9 @@ Git remains useful as a fallback but is not a mandatory runtime dependency for
 basic ADR operations.
 
 Tests must cover nested directories, competing ancestor markers, unrelated
-`.env` files, qualifying `.env` files, explicit root overrides, `.adr-dir`, Git
-fallback, cwd fallback, and initialization inside nested Git directories.
+`.env` files, qualifying `.env` files, unknown namespaced keys, explicit root
+overrides, `.adr-dir`, Git fallback, cwd fallback, and initialization inside
+nested Git directories.
 
 ## Open Questions and Follow-Ups
 
