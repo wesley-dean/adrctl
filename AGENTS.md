@@ -56,7 +56,7 @@ Preserve these boundaries unless a later ADR intentionally changes them:
 - Project configuration is data and is never sourced or evaluated.
 - `mktext` performs textual substitution only; `adrctl` owns ADR-specific value
   acquisition and transformation.
-- `mktext` v0.0.6 is the pinned build dependency until an intentional dependency
+- `mktext` v0.0.7 is the pinned build dependency until an intentional dependency
   update changes that decision.
 - The embedded renderer adds no runtime network dependency.
 - Multi-file mutations preflight the complete intended change before writing.
@@ -142,10 +142,10 @@ Build and development:
 
 Build dependency:
 
-- `mktext` v0.0.6
+- `mktext` v0.0.7
 - release asset: `mktext.bash`
 - expected SHA-256:
-  `03d8b99188251ffeca394cd5737e8876813190d14d671109f2fbe236f4b13c01`
+  `213cee4663512954f486c8a6ff00ddd36a9b4c48ceb3e9b71d9ec70a36c1e0dd`
 
 ## Source and Build Boundaries
 
