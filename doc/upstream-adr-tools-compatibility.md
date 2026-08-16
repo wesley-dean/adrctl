@@ -118,10 +118,10 @@ Exactly one delimiter pair is selected for each render.  Mixed implicit
 rendering and two-pass substitution are not supported.
 
 ADR-003 pins `mktext` v0.0.6 as a verified build dependency and incorporates its
-release artifact unchanged into the generated `adrctl` executable.  The v0.0.6
-execution guard remains inert when concatenated into an executable whose basename
-is `adrctl` or `adr`, so the final product retains one effective process
-entrypoint.
+release artifact unchanged into the generated `adrctl.bash` distribution artifact.
+The v0.0.6 execution guard remains inert when the same bytes are executed as
+`adrctl.bash`, installed or linked as `adrctl`, or reached through an `adr`
+symlink, so the final product retains one effective process entrypoint.
 
 ## License and provenance boundary
 
@@ -180,8 +180,10 @@ The material questions originally identified by this baseline have now been
 resolved:
 
 - **License:** `adrctl` remains CC0 under ADR-004.
-- **Executable compatibility:** `adrctl` is the canonical artifact and SHALL work
-  through a user- or package-created `adr` symlink under ADR-002.
+- **Executable compatibility:** `adrctl` remains the canonical product and
+  installed command identity; the generated distribution artifact is
+  `adrctl.bash`, and the same bytes support an `adr` symlink or ordinary shell
+  alias invocation under ADR-002 and ADR-019.
 - **Template compatibility:** one `mktext` renderer with automatic delimiter
   selection and explicit overrides is defined by ADR-001 and ADR-003.
 - **Project discovery:** explicit root overrides win, then the nearest recognized
@@ -195,4 +197,4 @@ resolved:
   predecessor partial-write states are not compatibility requirements.
 
 These decisions remove the original material blockers to drafting the remaining
-Proposed ADR corpus and normative behavioral specification.
+ADR corpus and normative behavioral specification.

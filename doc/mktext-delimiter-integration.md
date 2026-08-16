@@ -17,7 +17,7 @@ SHA-256:      03d8b99188251ffeca394cd5737e8876813190d14d671109f2fbe236f4b13c01
 
 Release `v0.0.6` includes both configurable render delimiters and the
 concatenation-safe direct-execution guard required for embedding `mktext` in the
-generated `adrctl` executable.
+generated `adrctl.bash` distribution artifact.
 
 ## Context
 
@@ -47,10 +47,10 @@ options.  Its normal defaults remain `{` and `}`.  Supplying empty strings for
 both options selects bare-key mode.
 
 `mktext` also now constrains its direct-execution entrypoint to supported
-`mktext` invocation basenames.  When the same source is concatenated into an
-executable named `adrctl` or reached through an `adr` symlink, the embedded
-`mktext` entrypoint remains inert and execution can continue to the `adrctl`
-entrypoint.
+`mktext` invocation basenames.  When the same source is concatenated into
+`adrctl.bash`, installed or linked as `adrctl`, or reached through an `adr`
+symlink, the embedded `mktext` entrypoint remains inert and execution can
+continue to the `adrctl` entrypoint.
 
 ## Verified mktext contract
 
@@ -129,13 +129,18 @@ render contract.
 ## Build and embedding consequence
 
 The `adrctl` build may incorporate the pinned `mktext.bash` release artifact into
-the generated `adrctl` executable by ordered concatenation without rewriting or
-removing the `mktext` direct-execution guard.
+the generated `adrctl.bash` distribution artifact by ordered concatenation
+without rewriting or removing the `mktext` direct-execution guard.
 
 The final executable SHALL still have one effective product entrypoint owned by
-`adrctl`.  The embedded `mktext` guard is expected to remain inert because the
-invocation basename is `adrctl` or the supported compatibility alias `adr`, not
-`mktext` or `mktext.bash`.
+`adrctl`.  The embedded `mktext` guard remains inert when the artifact is executed
+as `adrctl.bash`, installed or linked as `adrctl`, or reached through the
+supported `adr` symlink, because none of those basenames is `mktext` or
+`mktext.bash`.
+
+A shell alias that expands to the `adrctl.bash` path does not alter the executed
+script basename, so the same guard behavior applies without a special embedding
+mode.
 
 The build should verify the downloaded dependency against the pinned SHA-256
 before incorporating it.  A checksum mismatch SHALL fail the build before the
@@ -155,8 +160,8 @@ braced templates should be tested separately, together with ambiguous templates,
 explicit custom delimiters, and unrelated brace expressions.
 
 Generated-artifact tests should also verify that the embedded `mktext` entrypoint
-does not claim `adrctl` arguments when the final artifact is executed directly
-as `adrctl` or through an `adr` symlink.
+does not claim `adrctl` arguments when the final artifact is executed directly as
+`adrctl.bash`, under the installed `adrctl` name, or through an `adr` symlink.
 
 The implementation should preserve successful predecessor behavior rather than
 assuming every incidental `sed` edge case is a compatibility requirement.  Any
@@ -182,5 +187,5 @@ concatenation?" are resolved.
 
 The architecture uses one renderer, `mktext`, with `adrctl` choosing the
 effective delimiter pair according to ADR-001.  The `v0.0.6` dependency can be
-verified and concatenated into the generated artifact while leaving process
-startup under `adrctl` ownership.
+verified and concatenated into `dist/adrctl.bash` while leaving process startup
+under `adrctl` ownership.
