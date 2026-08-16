@@ -82,20 +82,29 @@ adrctl_setup() {
   local adr_path="${adr_path:-${HOME}/.local/bin/adrctl.bash}"
   local adr_url="${adr_url:-https://github.com/wesley-dean/adrctl/releases/latest/download/adrctl.bash}"
   local checksum_url="${adr_url}.sha256"
-  local tmp_path="${adr_path}.tmp.$$"
+  local tmp_path
+  local checksum_path
   local expected
   local actual
 
   if [[ ! -x "${adr_path}" ]]; then
     mkdir -p "${adr_path%/*}" || return 1
 
-    if ! curl -fsSL "${adr_url}" -o "${tmp_path}"; then
-      rm -f "${tmp_path}"
+    if ! tmp_path="$(mktemp "${adr_path}.tmp.XXXXXX")"; then
+      return 1
+    fi
+    checksum_path="${tmp_path}.sha256"
+
+    if ! curl -fsSL "${adr_url}" -o "${tmp_path}" ||
+      ! curl -fsSL "${checksum_url}" -o "${checksum_path}"; then
+      rm -f "${tmp_path}" "${checksum_path}"
       return 1
     fi
 
-    if ! expected="$(curl -fsSL "${checksum_url}" | awk 'NR == 1 { print $1 }')"; then
-      rm -f "${tmp_path}"
+    if ! read -r expected _ <"${checksum_path}" ||
+      [[ ! "${expected}" =~ ^[[:xdigit:]]{64}$ ]]; then
+      printf '%s\n' 'adrctl release checksum is invalid' >&2
+      rm -f "${tmp_path}" "${checksum_path}"
       return 1
     fi
 
@@ -105,16 +114,17 @@ adrctl_setup() {
       actual="$(shasum -a 256 "${tmp_path}" | awk '{ print $1 }')"
     else
       printf '%s\n' 'adrctl setup requires sha256sum or shasum' >&2
-      rm -f "${tmp_path}"
+      rm -f "${tmp_path}" "${checksum_path}"
       return 1
     fi
 
     if [[ "${actual}" != "${expected}" ]]; then
       printf '%s\n' 'adrctl checksum verification failed' >&2
-      rm -f "${tmp_path}"
+      rm -f "${tmp_path}" "${checksum_path}"
       return 1
     fi
 
+    rm -f "${checksum_path}"
     if ! chmod 0755 "${tmp_path}" || ! mv "${tmp_path}" "${adr_path}"; then
       rm -f "${tmp_path}"
       return 1
