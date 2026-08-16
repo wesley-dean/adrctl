@@ -16,6 +16,8 @@ concurrency:
   group: "${{ github.ref }}-${{ github.workflow }}"
   cancel-in-progress: true
 
+# Keep this workflow edit-sensitive during initial development so a deliberate
+# workflow change validates the current branch head through the literal artifact.
 jobs:
   test:
     runs-on: ubuntu-24.04
