@@ -21,6 +21,11 @@ runtime inputs higher precedence than project defaults.
 new `ADRCTL_` configuration without allowing multiple sources to silently fight
 over the same setting.
 
+Project-root selection is intentionally separate from project-file
+configuration.  A `.env` file can only be read after its project root has already
+been selected, so allowing that same file to redirect `PROJECT_ROOT` would create
+recursive or order-dependent discovery semantics.
+
 ## Decision
 
 The primary project configuration file SHALL be `.env` at the resolved
@@ -31,7 +36,8 @@ its contents.
 
 Product-owned configuration keys SHALL use the `ADRCTL_` prefix.
 
-The effective value precedence SHALL be, from highest to lowest:
+The effective value precedence for project-scoped settings SHALL be, from highest
+to lowest:
 
 1. explicit command-line option;
 2. process environment variable;
@@ -48,15 +54,26 @@ reported as configuration errors.  This makes misspellings visible rather than
 silently falling back to defaults.  Non-`ADRCTL_` keys in the same `.env` SHALL be
 ignored by `adrctl`.
 
-The initial configuration namespace SHALL include, at minimum, concepts for:
+`ADRCTL_PROJECT_ROOT` SHALL be a process-environment override only.  It SHALL NOT
+be a valid assignment in the project `.env` file.  A project file containing
+`ADRCTL_PROJECT_ROOT` SHALL fail configuration validation rather than redirecting
+configuration loading to another directory.
+
+The initial project-file configuration namespace SHALL include, at minimum,
+concepts for:
 
 ```text
-ADRCTL_PROJECT_ROOT
 ADRCTL_ADR_DIR
 ADRCTL_TEMPLATE
 ADRCTL_FILENAME_PATTERN
 ADRCTL_TEMPLATE_START_DELIMITER
 ADRCTL_TEMPLATE_END_DELIMITER
+```
+
+The process environment additionally supports:
+
+```text
+ADRCTL_PROJECT_ROOT
 ```
 
 The normative specification MAY refine exact option spellings before
@@ -86,6 +103,13 @@ This would provide shell expansion and arbitrary logic, but it would make merely
 using a repository execute repository-controlled code.  It also creates quoting,
 portability, and reproducibility problems.
 
+### Allow `.env` to redefine its own project root
+
+This was rejected because discovery must already know the root before it can
+select and read the file.  A root value inside that file would either be ignored,
+force a second discovery pass, or create recursive configuration semantics.
+Project-root overrides therefore remain CLI/process inputs.
+
 ### Silently ignore unknown `ADRCTL_` keys
 
 That would make forward compatibility superficially permissive but would hide
@@ -112,6 +136,9 @@ Configuration behavior remains deterministic from nested working directories.
 
 Legacy `.adr-dir` repositories continue to work while newer settings have an
 explicit precedence model.
+
+Project-root discovery remains one-way and cannot be redirected by the file that
+discovery selected.
 
 ## Related Decisions
 
