@@ -91,7 +91,7 @@ It SHALL:
 - begin with `#!/usr/bin/env bash`;
 - be executable with mode `0755`;
 - contain the complete required runtime implementation in one file;
-- embed the verified `mktext` v0.0.6 release artifact unchanged;
+- embed the verified `mktext` v0.0.7 release artifact unchanged;
 - contain exactly one effective `adrctl` product entrypoint;
 - remain executable directly, through an installed `adrctl` name, through an
   `adr` filesystem symlink, and through a shell alias that expands to its path;
@@ -885,11 +885,11 @@ that expands to the artifact path.
 Normal runtime operations SHALL NOT fetch dependencies or templates from the
 network.
 
-The build/release process pins `mktext` v0.0.6.  The expected release-asset
+The build/release process pins `mktext` v0.0.7.  The expected release-asset
 SHA-256 is:
 
 ```text
-03d8b99188251ffeca394cd5737e8876813190d14d671109f2fbe236f4b13c01
+213cee4663512954f486c8a6ff00ddd36a9b4c48ceb3e9b71d9ec70a36c1e0dd
 ```
 
 The artifact SHALL be verified before it is embedded unchanged into
