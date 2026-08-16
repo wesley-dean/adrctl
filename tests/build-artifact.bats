@@ -5,13 +5,10 @@ setup() {
   ADRCTL="${REPO_ROOT}/dist/adrctl.bash"
 }
 
-@test "generated artifact strips full-line comments from maintained adrctl source" {
+@test "generated artifact strips Doxygen comments from maintained adrctl source" {
   [ -x "${ADRCTL}" ]
 
-  run grep -F '## @file lib/runtime.bash' "${ADRCTL}"
-  [ "${status}" -eq 1 ]
-
-  run grep -F '## @file src/adrctl.bash' "${ADRCTL}"
+  run grep -E '^##[[:space:]]+@' "${ADRCTL}"
   [ "${status}" -eq 1 ]
 }
 
