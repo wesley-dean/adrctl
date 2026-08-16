@@ -484,7 +484,7 @@ __adrctl_command_new() {
   local -A target_remove
   # The render context is populated and consumed by variable name through mktext.
   # shellcheck disable=SC2034
-  local -A context
+  local -A context=()
 
   declare -a superseded_refs=()
   declare -a link_specs=()
@@ -635,7 +635,6 @@ __adrctl_command_new() {
 
   __adrctl_next_number number
   date="$(__adrctl_current_date)"
-  declare -A context=()
   if ! __adrctl_populate_context context "${number}" "${title}" Accepted "${date}"; then
     __adrctl_fail_operational 'failed to prepare ADR render context'
     return $?
