@@ -12,9 +12,8 @@ work through an `adr` symbolic link for command-name compatibility with existing
 
 ## Status
 
-`adrctl` is under active initial development.  The current implementation and
-behavioral specification live on the development branch until the initial ADR
-set, compatibility corpus, documentation, and release workflow are complete.
+`adrctl` is under active development.  The current implementation, behavioral
+specification, ADR corpus, documentation, and release workflow live on `main`.
 
 The compatibility baseline is `adr-tools` 3.0.0.  Intentional deviations are
 documented in the ADRs and in `doc/adrctl-spec.md` rather than being hidden in
@@ -48,7 +47,7 @@ Build it with:
 make build
 ```
 
-The build acquires `mktext` v0.0.6 when necessary and verifies its published
+The build acquires `mktext` v0.0.7 when necessary and verifies its published
 SHA-256 digest before embedding it unchanged.
 
 The generated artifact is build output rather than maintained source.  Do not
@@ -69,6 +68,82 @@ installed command:
 ```bash
 ln -s adrctl ~/.local/bin/adr
 ```
+
+### Bash startup setup
+
+Interactive Bash users may instead add the following to `~/.bashrc`.  On shell
+startup, the helper installs the latest released `adrctl.bash` only when the
+configured path is missing or is not executable, verifies the published SHA-256
+digest before replacing the destination, and defines `adr` as an alias for the
+installed artifact.
+
+```bash
+adrctl_setup() {
+  local adr_path="${adr_path:-${HOME}/.local/bin/adrctl.bash}"
+  local adr_url="${adr_url:-https://github.com/wesley-dean/adrctl/releases/latest/download/adrctl.bash}"
+  local checksum_url="${adr_url}.sha256"
+  local tmp_path
+  local checksum_path
+  local expected
+  local actual
+
+  if [[ ! -x "${adr_path}" ]]; then
+    mkdir -p "${adr_path%/*}" || return 1
+
+    if ! tmp_path="$(mktemp "${adr_path}.tmp.XXXXXX")"; then
+      return 1
+    fi
+    checksum_path="${tmp_path}.sha256"
+
+    if ! curl -fsSL "${adr_url}" -o "${tmp_path}" ||
+      ! curl -fsSL "${checksum_url}" -o "${checksum_path}"; then
+      rm -f "${tmp_path}" "${checksum_path}"
+      return 1
+    fi
+
+    if ! read -r expected _ <"${checksum_path}" ||
+      [[ ! "${expected}" =~ ^[[:xdigit:]]{64}$ ]]; then
+      printf '%s\n' 'adrctl release checksum is invalid' >&2
+      rm -f "${tmp_path}" "${checksum_path}"
+      return 1
+    fi
+
+    if command -v sha256sum >/dev/null 2>&1; then
+      actual="$(sha256sum "${tmp_path}" | awk '{ print $1 }')"
+    elif command -v shasum >/dev/null 2>&1; then
+      actual="$(shasum -a 256 "${tmp_path}" | awk '{ print $1 }')"
+    else
+      printf '%s\n' 'adrctl setup requires sha256sum or shasum' >&2
+      rm -f "${tmp_path}" "${checksum_path}"
+      return 1
+    fi
+
+    if [[ "${actual}" != "${expected}" ]]; then
+      printf '%s\n' 'adrctl checksum verification failed' >&2
+      rm -f "${tmp_path}" "${checksum_path}"
+      return 1
+    fi
+
+    rm -f "${checksum_path}"
+    if ! chmod 0755 "${tmp_path}" || ! mv "${tmp_path}" "${adr_path}"; then
+      rm -f "${tmp_path}"
+      return 1
+    fi
+  fi
+
+  printf '%s\n' "${adr_path}"
+}
+
+if adr_path="$(adrctl_setup)"; then
+  # shellcheck disable=SC2139
+  alias adr="${adr_path}"
+fi
+```
+
+Set `adr_path` or `adr_url` before this block to override the default installation
+path or release URL.  The helper intentionally does not replace an already
+executable installation on every shell startup; remove or replace that file when
+you deliberately want to acquire a newer release.
 
 Direct execution of `dist/adrctl.bash` is also supported and presents the
 canonical `adrctl` command identity in help and diagnostics.
