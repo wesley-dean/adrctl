@@ -953,10 +953,12 @@ __adrctl_emit_graph_relationships() {
   local target_digits
   local target_number
   local escaped_relation
+  local relationship_regex
 
   source="$1"
   source_number="$2"
   in_status=0
+  relationship_regex='^(.+)[[:space:]]\[[^]]*\]\(([0-9]+)-[^)]*\.md\)$'
 
   while IFS= read -r line || [[ -n ${line} ]]; do
     if [[ ${line} == '## Status' ]]; then
@@ -968,7 +970,7 @@ __adrctl_emit_graph_relationships() {
     fi
     (( in_status )) || continue
 
-    if [[ ${line} =~ ^(.+)[[:space:]]\[[^]]*\]\(([0-9]+)-[^)]*\.md\)$ ]]; then
+    if [[ ${line} =~ ${relationship_regex} ]]; then
       relation="${BASH_REMATCH[1]}"
       target_digits="${BASH_REMATCH[2]}"
       [[ ${relation} == *' by' ]] && continue
