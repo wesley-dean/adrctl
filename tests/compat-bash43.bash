@@ -23,12 +23,15 @@ ln -s "${adrctl}" "${work}/adrctl"
 ln -s "${adrctl}" "${work}/adr"
 "${work}/adr" --version >/dev/null
 
-cat >"${work}/alias-test.bash" <<EOF
+alias_home="${work}/home"
+mkdir -p "${alias_home}/.local/bin"
+ln -s "${adrctl}" "${alias_home}/.local/bin/adrctl.bash"
+cat >"${work}/alias-test.bash" <<'EOF'
 shopt -s expand_aliases
-alias adr='${adrctl}'
+alias adr=~/.local/bin/adrctl.bash
 adr --version >/dev/null
 EOF
-bash "${work}/alias-test.bash"
+HOME="${alias_home}" bash "${work}/alias-test.bash"
 
 (
   cd "${work}"
