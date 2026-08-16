@@ -27,22 +27,6 @@ __adrctl_config_reset() {
   __adrctl_cfg_end_delimiter_set=0
 }
 
-## @fn __adrctl_config_key_is_project_scoped()
-## @brief Tests whether a key is a supported project-file adrctl setting.
-## @param $1 Key name.
-## @retval 0 The key is supported in project `.env`.
-## @retval 1 The key is not a project-scoped setting.
-__adrctl_config_key_is_project_scoped() {
-  case "$1" in
-    ADRCTL_ADR_DIR | ADRCTL_TEMPLATE | ADRCTL_FILENAME_PATTERN | \
-      ADRCTL_TEMPLATE_START_DELIMITER | ADRCTL_TEMPLATE_END_DELIMITER)
-      return 0
-      ;;
-  esac
-
-  return 1
-}
-
 ## @fn __adrctl_config_parse_assignment_line()
 ## @brief Parses one nonblank .env line into key and value output variables.
 ## @param $1 Raw line.
@@ -84,10 +68,15 @@ __adrctl_config_parse_assignment_line() {
 }
 
 ## @fn __adrctl_config_file_has_marker()
-## @brief Tests whether .env contains a supported project-scoped ADRCTL key.
+## @brief Tests whether .env contains an adrctl-namespaced assignment.
+## @details
+## Any syntactically valid `ADRCTL_` assignment establishes project context.
+## Unsupported or source-inappropriate keys are rejected later when the selected
+## project file is loaded.  This prevents a typo in a parent project file from
+## being silently skipped during nested-directory discovery.
 ## @param $1 .env path.
-## @retval 0 At least one supported project key is present.
-## @retval 1 No supported project key is present or the file is unreadable.
+## @retval 0 At least one adrctl-namespaced assignment is present.
+## @retval 1 No adrctl-namespaced assignment is present or the file is unreadable.
 __adrctl_config_file_has_marker() {
   local line
   local key
@@ -102,7 +91,7 @@ __adrctl_config_file_has_marker() {
     __adrctl_config_parse_assignment_line "${line}" key value
     status=$?
 
-    if (( status == 0 )) && __adrctl_config_key_is_project_scoped "${key}"; then
+    if (( status == 0 )) && [[ ${key} == ADRCTL_* ]]; then
       return 0
     fi
   done <"$1"
