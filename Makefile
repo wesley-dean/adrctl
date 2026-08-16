@@ -18,10 +18,10 @@ ENTRYPOINT := src/adrctl.bash
 SOURCE_FILES := $(LIB_FILES) $(ENTRYPOINT)
 
 VENDOR_DIR := vendor
-MKTEXT_VERSION := 0.0.6
+MKTEXT_VERSION := 0.0.7
 MKTEXT_ARTIFACT := $(VENDOR_DIR)/mktext.bash
 MKTEXT_URL := https://github.com/wesley-dean/mktext/releases/download/v$(MKTEXT_VERSION)/mktext.bash
-MKTEXT_SHA256 := 03d8b99188251ffeca394cd5737e8876813190d14d671109f2fbe236f4b13c01
+MKTEXT_SHA256 := 213cee4663512954f486c8a6ff00ddd36a9b4c48ceb3e9b71d9ec70a36c1e0dd
 
 TESTS_DIR := tests
 TEST_SCRIPTS := $(TESTS_DIR)/*.bats
