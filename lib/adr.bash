@@ -28,7 +28,6 @@ __adrctl_collect_adrs() {
   local -n output_ref="$1"
   local path
   local base
-  local number
   local i
   local j
   local left_number
@@ -73,21 +72,21 @@ __adrctl_collect_adrs() {
 ## @param $1 Output variable for next number.
 ## @retval 0 A candidate number was produced.
 __adrctl_next_number() {
-  local files
-  local number
-  local max
-  local path
+  local -a scanned_files
+  local scanned_number
+  local maximum_number
+  local scanned_path
 
-  declare -a files=()
-  max=0
+  declare -a scanned_files=()
+  maximum_number=0
 
-  __adrctl_collect_adrs files
-  for path in "${files[@]}"; do
-    __adrctl_file_number "${path}" number || continue
-    (( number > max )) && max="${number}"
+  __adrctl_collect_adrs scanned_files
+  for scanned_path in "${scanned_files[@]}"; do
+    __adrctl_file_number "${scanned_path}" scanned_number || continue
+    (( scanned_number > maximum_number )) && maximum_number="${scanned_number}"
   done
 
-  printf -v "$1" '%d' "$((max + 1))"
+  printf -v "$1" '%d' "$((maximum_number + 1))"
 }
 
 ## @fn __adrctl_relative_path()
@@ -254,16 +253,16 @@ __adrctl_has_status_section() {
 ## @retval 0 The relationship line was built.
 ## @retval 1 Target title could not be read.
 __adrctl_relationship_line() {
-  local relationship
-  local target
-  local title
+  local relation_text
+  local target_path
+  local target_title
 
-  relationship="$1"
-  target="$2"
+  relation_text="$1"
+  target_path="$2"
 
-  __adrctl_read_title "${target}" title || return 1
+  __adrctl_read_title "${target_path}" target_title || return 1
   printf -v "$3" '%s [%s](%s)' \
-    "${relationship}" "${title}" "${target##*/}"
+    "${relation_text}" "${target_title}" "${target_path##*/}"
 }
 
 ## @fn __adrctl_temp_path()
