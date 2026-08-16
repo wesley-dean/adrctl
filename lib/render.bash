@@ -85,7 +85,11 @@ __adrctl_populate_context() {
   mktext set "${context_name}" TITLE_SLUG "${slug}" || return 1
   mktext set "${context_name}" STATUS "${status}" || return 1
   mktext set "${context_name}" DATE "${date}" || return 1
+  # Project discovery assigns this cross-module state before rendering begins.
+  # shellcheck disable=SC2154
   mktext set "${context_name}" PROJECT_ROOT "${__adrctl_project_root}" || return 1
+  # Project discovery assigns this cross-module state before rendering begins.
+  # shellcheck disable=SC2154
   mktext set "${context_name}" ADR_DIR "${__adrctl_adr_dir}" || return 1
 }
 
