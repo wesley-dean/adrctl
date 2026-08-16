@@ -1,0 +1,73 @@
+---
+# yamllint disable-line rule:truthy
+on:
+  push:
+    branches:
+      - main
+      - "agent/**"
+  pull_request:
+  workflow_dispatch:
+
+name: Tests
+permissions:
+  contents: read
+
+concurrency:
+  group: "${{ github.ref }}-${{ github.workflow }}"
+  cancel-in-progress: true
+
+# Keep this workflow edit-sensitive during initial development so a deliberate
+# workflow change validates the current branch head through the literal artifact.
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # pin@v4
+
+      - name: Install test dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes bats shellcheck
+
+      - name: Verify pinned mktext dependency
+        run: make verify-mktext
+
+      - name: Run source and generated-artifact validation
+        run: make check test
+
+  bash-4-3:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # pin@v4
+
+      - name: Build compatibility artifact
+        run: make build VERSION=0.0.0-ci
+
+      - name: Verify minimum Bash version
+        run: |
+          docker run --rm \
+            --volume "${GITHUB_WORKSPACE}:/work:ro" \
+            --workdir /work \
+            bash:4.3 \
+            bash tests/compat-bash43.bash
+
+  docs:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # pin@v4
+
+      - name: Install documentation dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes doxygen
+
+      - name: Generate reference documentation
+        run: make docs
+
+      - name: Verify reference documentation output
+        run: |
+          test -f doc/reference/index.html
+          test -f doc/reference/README.md
