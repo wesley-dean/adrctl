@@ -1,14 +1,20 @@
 # adrctl
 
+[![Dependabot Updates](https://github.com/wesley-dean/adrctl/actions/workflows/dependabot/dependabot-updates/badge.svg)](https://github.com/wesley-dean/adrctl/actions/workflows/dependabot/dependabot-updates)
+[![MegaLinter](https://github.com/wesley-dean/adrctl/actions/workflows/megalinter.yml/badge.svg)](https://github.com/wesley-dean/adrctl/actions/workflows/megalinter.yml)
+[![Scorecard supply-chain security](https://github.com/wesley-dean/adrctl/actions/workflows/scorecard.yml/badge.svg)](https://github.com/wesley-dean/adrctl/actions/workflows/scorecard.yml)
+[![Tests](https://github.com/wesley-dean/adrctl/actions/workflows/test.yml/badge.svg)](https://github.com/wesley-dean/adrctl/actions/workflows/test.yml)
+
 `adrctl` is a Bash tool for creating and maintaining Architecture Decision
 Records (ADRs).  It is a deliberate successor to
 [`npryce/adr-tools`](https://github.com/npryce/adr-tools) that preserves familiar
 workflows where practical while improving configuration safety, failure
 preflight, testing, documentation, and release discipline.
 
-The canonical command is `adrctl`.  The same generated artifact is designed to
-work through an `adr` symbolic link for command-name compatibility with existing
-`adr-tools` habits and automation.
+The canonical product identity is `adrctl`.  The generated and released
+executable is named `adrctl.bash`.  The same generated artifact is designed to
+work through an `adr` symbolic link or alias for command-name compatibility with
+existing `adr-tools` habits and automation.
 
 ## Status
 
@@ -55,18 +61,18 @@ edit `dist/adrctl.bash` directly.
 
 ## Installation
 
-The built or released file is named `adrctl.bash`.  Install those bytes under the
-canonical command name `adrctl`, for example:
+The built or released executable is named `adrctl.bash`.  Install those bytes
+under that filename, for example:
 
 ```bash
-install -m 0755 dist/adrctl.bash ~/.local/bin/adrctl
+install -m 0755 dist/adrctl.bash ~/.local/bin/adrctl.bash
 ```
 
 To retain the historical `adr` command name, create a symbolic link to that same
-installed command:
+installed executable:
 
 ```bash
-ln -s adrctl ~/.local/bin/adr
+ln -s adrctl.bash ~/.local/bin/adr
 ```
 
 ### Bash startup setup
@@ -145,37 +151,38 @@ path or release URL.  The helper intentionally does not replace an already
 executable installation on every shell startup; remove or replace that file when
 you deliberately want to acquire a newer release.
 
-Direct execution of `dist/adrctl.bash` is also supported and presents the
-canonical `adrctl` command identity in help and diagnostics.
+Direct execution of `dist/adrctl.bash` is supported and presents the canonical
+`adrctl` product identity in help and diagnostics.
 
-`adrctl` remains the canonical product and command identity.  The `adrctl.bash`
-name identifies the generated distribution file, while `adr` is a supported
+`adrctl` remains the canonical product identity.  The `adrctl.bash` name
+identifies the generated distribution executable, while `adr` is a supported
 compatibility invocation alias rather than a separate executable implementation.
 
 ## Commands
 
-The initial public command surface is:
+The initial public command surface, when invoking the distributed executable
+directly, is:
 
 ```text
-adrctl init [DIRECTORY]
-adrctl new [-s REFERENCE]... [-l TARGET:LINK:REVERSE-LINK]... [OPTIONS] TITLE...
-adrctl link SOURCE LINK TARGET REVERSE-LINK
-adrctl list
-adrctl generate [toc|graph] [OPTIONS]
-adrctl upgrade-repository
-adrctl help [COMMAND [SUBCOMMAND...]]
-adrctl --version
+adrctl.bash init [DIRECTORY]
+adrctl.bash new [-s REFERENCE]... [-l TARGET:LINK:REVERSE-LINK]... [OPTIONS] TITLE...
+adrctl.bash link SOURCE LINK TARGET REVERSE-LINK
+adrctl.bash list
+adrctl.bash generate [toc|graph] [OPTIONS]
+adrctl.bash upgrade-repository
+adrctl.bash help [COMMAND [SUBCOMMAND...]]
+adrctl.bash --version
 ```
 
-The same commands work with `adr` substituted for `adrctl` when using the
-supported symlink.
+The same commands work with `adr` substituted for `adrctl.bash` when using the
+supported symbolic link or Bash alias.
 
 ### Initialize a repository
 
 From the directory that should own the ADR project:
 
 ```bash
-adrctl init
+adrctl.bash init
 ```
 
 The default ADR directory is `doc/adr`.
@@ -183,7 +190,7 @@ The default ADR directory is `doc/adr`.
 To use another directory while retaining the legacy compatibility marker:
 
 ```bash
-adrctl init decisions
+adrctl.bash init decisions
 ```
 
 This creates `.adr-dir` containing `decisions` and creates the first ADR without
@@ -192,7 +199,7 @@ opening an editor.
 ### Create an ADR
 
 ```bash
-adrctl new "Use PostgreSQL"
+adrctl.bash new "Use PostgreSQL"
 ```
 
 By default, ADR filenames preserve the established four-digit numbering pattern:
@@ -207,13 +214,13 @@ in shell automation.
 Existing ADRs may be superseded:
 
 ```bash
-adrctl new -s 12 "Replace the original caching strategy"
+adrctl.bash new -s 12 "Replace the original caching strategy"
 ```
 
 Arbitrary reciprocal relationships use the inherited three-field form:
 
 ```bash
-adrctl new \
+adrctl.bash new \
   -l '12:Depends on:Required by' \
   "Introduce a shared cache"
 ```
@@ -221,7 +228,7 @@ adrctl new \
 ### Link existing ADRs
 
 ```bash
-adrctl link 12 'Depends on' 18 'Required by'
+adrctl.bash link 12 'Depends on' 18 'Required by'
 ```
 
 Both references are resolved before either document is replaced.  Ambiguous
@@ -232,13 +239,13 @@ partial references fail rather than selecting an arbitrary first match.
 Generate a Markdown table of contents:
 
 ```bash
-adrctl generate toc
+adrctl.bash generate toc
 ```
 
 Generate Graphviz DOT source:
 
 ```bash
-adrctl generate graph
+adrctl.bash generate graph
 ```
 
 `adrctl` does not invoke Graphviz automatically.  DOT output can be piped to a
@@ -401,7 +408,9 @@ The initial architecture and compatibility analysis is also retained under
 ## Release Model
 
 Releases use Semantic Versioning and publish one canonical `adrctl.bash`
-distribution artifact.  The canonical installed command remains `adrctl`.
+distribution artifact.  The product identity remains `adrctl`; README command
+examples use the released `adrctl.bash` filename unless demonstrating the
+supported `adr` compatibility invocation.
 Release validation builds and tests the exact artifact, generates a SHA-256
 checksum, and produces GitHub provenance attestation when supported by the
 release platform.
