@@ -1,0 +1,44 @@
+# Doxygen configuration for adrctl Bash source.
+
+PROJECT_NAME           = "adrctl"
+PROJECT_BRIEF          = "Compatible and safer Architecture Decision Record tooling"
+
+OUTPUT_DIRECTORY       = doc/reference
+CREATE_SUBDIRS         = NO
+
+GENERATE_HTML          = YES
+HTML_OUTPUT            = .
+GENERATE_LATEX         = NO
+GENERATE_MAN            = NO
+GENERATE_RTF           = NO
+GENERATE_XML           = NO
+
+INPUT                  = lib src
+RECURSIVE              = YES
+FILE_PATTERNS          = *.bash
+
+EXCLUDE                = tests \
+                         vendor \
+                         dist
+EXCLUDE_PATTERNS       = */tests/* \
+                         */vendor/* \
+                         */dist/*
+
+EXTENSION_MAPPING      = bash=C++
+FILTER_PATTERNS        = *.bash=vendor/doxygen-bash.awk
+
+EXTRACT_ALL            = NO
+EXTRACT_PRIVATE        = NO
+EXTRACT_STATIC         = NO
+HIDE_UNDOC_MEMBERS     = YES
+HIDE_UNDOC_CLASSES     = YES
+
+OPTIMIZE_OUTPUT_FOR_C  = YES
+MARKDOWN_SUPPORT       = YES
+AUTOLINK_SUPPORT       = YES
+
+QUIET                  = YES
+WARNINGS               = YES
+WARN_IF_UNDOCUMENTED   = NO
+WARN_IF_DOC_ERROR      = YES
+WARN_AS_ERROR          = NO
