@@ -16,6 +16,7 @@ LIB_FILES := \
 	lib/commands.bash
 ENTRYPOINT := src/adrctl.bash
 SOURCE_FILES := $(LIB_FILES) $(ENTRYPOINT)
+CHECK_BASH_FILES := $(sort $(wildcard lib/*.bash) $(wildcard src/*.bash))
 
 VENDOR_DIR := vendor
 MKTEXT_VERSION := 0.0.7
@@ -102,13 +103,13 @@ verify-mktext: $(MKTEXT_ARTIFACT)
 		exit 1; \
 	fi
 
-## Validate all maintained Bash source.
+## Validate every maintained Bash source file discovered under lib/ and src/.
 ##
-## The same SOURCE_FILES list drives parser validation, ShellCheck, formatting,
-## and artifact assembly so newly added Bash modules cannot silently escape checks.
+## Artifact assembly keeps an explicit module order, while validation discovers
+## Bash sources dynamically so newly added files cannot silently escape checks.
 check:
-	bash -n $(SOURCE_FILES)
-	shellcheck $(SOURCE_FILES)
+	bash -n $(CHECK_BASH_FILES)
+	shellcheck $(CHECK_BASH_FILES)
 
 ## Format maintained Bash source using the project formatter contract.
 format:
