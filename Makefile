@@ -93,9 +93,18 @@ verify-mktext: $(MKTEXT_ARTIFACT)
 	fi
 
 ## Validate maintained Bash source.
+##
+## The modules are concatenated in the explicit build order above.  ShellCheck
+## analyzes source files independently, so modules that intentionally consume
+## private globals from earlier modules need SC2154 excluded for that file.  The
+## command layer also passes caller-owned arrays by variable name to nameref
+## helpers, which ShellCheck cannot follow statically; SC2034/SC2190 are excluded
+## only for that module.  All other ShellCheck diagnostics remain enabled.
 check:
 	bash -n $(SOURCE_FILES)
-	shellcheck $(SOURCE_FILES)
+	shellcheck lib/runtime.bash lib/config.bash lib/project.bash $(ENTRYPOINT)
+	shellcheck -e SC2154 lib/render.bash lib/adr.bash
+	shellcheck -e SC2034,SC2154,SC2190 lib/commands.bash
 
 ## Format maintained Bash source using the project formatter contract.
 format:
@@ -119,7 +128,7 @@ $(DOXYGEN_BASH_FILTER):
 
 ## Remove generated reference documentation while preserving its sentinel README.
 docs-clean:
-	@if [[ -d "$(REFERENCE_DOC_DIR)" ]]; then \
+	@if [[ -d "$(REFERENCE_DOC_DIR)" ]; then \
 		find "$(REFERENCE_DOC_DIR)" -mindepth 1 ! -name README.md -exec rm -rf {} +; \
 	fi
 
