@@ -36,6 +36,8 @@ __adrctl_collect_adrs() {
 
   output_ref=()
 
+  # Project discovery assigns this cross-module state before ADR collection.
+  # shellcheck disable=SC2154
   [[ -d ${__adrctl_adr_dir} ]] || return 0
 
   for path in "${__adrctl_adr_dir}"/*.md; do
@@ -208,6 +210,8 @@ __adrctl_resolve_reference() {
   for path in "${matches[@]}"; do
     printf '  %s\n' "${path##*/}" >&2 || :
   done
+  # Runtime defines the public operational exit-status constant before dispatch.
+  # shellcheck disable=SC2154
   return "${__adrctl_exit_operational}"
 }
 
@@ -287,14 +291,14 @@ __adrctl_temp_path() {
 ## @param $1 Source ADR pathname.
 ## @param $2 Prepared output pathname.
 ## @param $3 Exact status line to remove, or empty for none.
-## @param $4 Array variable containing relationship lines to append.
+## @param $4... Relationship lines to append.
 ## @retval 0 Output was prepared and a Status section existed.
 ## @retval 1 Source could not be transformed safely.
 __adrctl_prepare_status_mutation() {
   local source
   local output
   local remove_status
-  local -n links_ref="$4"
+  local -a links
   local line
   local in_status
   local saw_status
@@ -304,6 +308,8 @@ __adrctl_prepare_status_mutation() {
   source="$1"
   output="$2"
   remove_status="$3"
+  shift 3
+  links=("$@")
   in_status=0
   saw_status=0
   inserted=0
@@ -320,10 +326,10 @@ __adrctl_prepare_status_mutation() {
 
     if (( in_status )) && [[ ${line} == '## '* ]]; then
       if (( inserted == 0 )); then
-        for link in "${links_ref[@]}"; do
+        for link in "${links[@]}"; do
           printf '%s\n' "${link}" >>"${output}" || return 1
         done
-        (( ${#links_ref[@]} > 0 )) && printf '\n' >>"${output}"
+        (( ${#links[@]} > 0 )) && printf '\n' >>"${output}"
         inserted=1
       fi
       in_status=0
@@ -337,10 +343,10 @@ __adrctl_prepare_status_mutation() {
   done <"${source}"
 
   if (( in_status && inserted == 0 )); then
-    for link in "${links_ref[@]}"; do
+    for link in "${links[@]}"; do
       printf '%s\n' "${link}" >>"${output}" || return 1
     done
-    (( ${#links_ref[@]} > 0 )) && printf '\n' >>"${output}"
+    (( ${#links[@]} > 0 )) && printf '\n' >>"${output}"
   fi
 
   (( saw_status )) || return 1
