@@ -10,14 +10,15 @@ implementation and tests are expected to satisfy.
 
 Normative terms such as SHALL, SHALL NOT, SHOULD, and MAY are used deliberately.
 
-While the initial ADR corpus remains Proposed, this specification is the working
-contract for implementation.  If implementation exposes a conflict with an ADR,
-the conflict SHALL be resolved in the ADR/specification rather than silently
-encoded in source.
+During initial development, the new ADR corpus remains Proposed until the
+maintainer intentionally accepts it.  This specification is nevertheless the
+working implementation contract.  If source behavior conflicts with an ADR or
+this specification, the conflict SHALL be resolved explicitly rather than
+allowing implementation to become undocumented architecture.
 
-## Product and Compatibility Identity
+## Product Identity and Compatibility Baseline
 
-The project, product, release artifact, and canonical executable name are:
+The canonical project, product, release artifact, and executable name are:
 
 ```text
 adrctl
@@ -31,15 +32,30 @@ adr
 ```
 
 The `adr` name is a compatibility invocation alias, not a separate product mode.
-Inherited commands SHALL use the same implementation and project semantics under
-both names.
+Inherited commands SHALL use the same implementation, configuration, and
+filesystem behavior through either name.
 
-Help and diagnostics SHOULD use the invoked basename so examples look natural to
-the user.  Version and provenance output SHALL identify the installed product as
-`adrctl` regardless of invocation basename.
+Help and diagnostic presentation SHOULD use the invoked basename when doing so
+makes examples clearer.  Version and provenance output SHALL always identify the
+installed product as `adrctl`.
 
-The initial compatibility comparator is `npryce/adr-tools` release 3.0.0 at
-commit `b47d3837d452ca6d2509d2524c7a08c701e84367`.
+The canonical predecessor comparator for the initial compatibility milestone is:
+
+```text
+Repository: npryce/adr-tools
+Release:    3.0.0
+Commit:     b47d3837d452ca6d2509d2524c7a08c701e84367
+```
+
+Compatibility behavior is classified as:
+
+```text
+Compatible
+Intentional deviation
+New adrctl behavior
+```
+
+Intentional deviations SHALL be documented and regression-tested.
 
 ## Runtime and Generated Artifact
 
@@ -55,17 +71,13 @@ It SHALL:
 
 - begin with `#!/usr/bin/env bash`;
 - be executable with mode `0755`;
-- contain the complete core runtime in one file;
-- embed the verified `mktext` v0.0.6 release artifact;
+- contain the complete required runtime implementation in one file;
+- embed the verified `mktext` v0.0.6 release artifact unchanged;
 - contain exactly one effective `adrctl` product entrypoint;
-- work when reached through an `adr` symlink; and
+- remain executable through an `adr` symlink; and
 - require no runtime network access for normal operation.
 
-The embedded `mktext` artifact is a private implementation dependency.  Its
-public function may be used internally, but its numeric return statuses and
-standalone command surface are not automatically part of the `adrctl` CLI.
-
-Build metadata SHALL be injected into the generated artifact:
+The generated artifact SHALL embed:
 
 ```text
 VERSION
@@ -73,23 +85,24 @@ BUILD_DATE
 BUILD_COMMIT
 ```
 
-`BUILD_DATE` SHALL be based on the source revision timestamp rather than the
-wall-clock time at which the artifact happened to be assembled.
+`BUILD_DATE` SHALL represent the source revision timestamp rather than wall-clock
+assembly time.  Version reporting SHALL NOT query Git, the clock, or the network
+at runtime.
 
-Runtime version reporting SHALL NOT query Git, the clock, or the network.
+The embedded `mktext` dependency is an implementation detail.  Its private
+numeric return-status vocabulary is not part of the `adrctl` CLI contract.
 
-## Public Command Grammar
+## Public Command Surface
 
-The public command grammar is conceptually:
+The command grammar is conceptually:
 
 ```text
 adrctl [GLOBAL-OPTION...] COMMAND [COMMAND-OPTION...] [ARGUMENT...]
 ```
 
-The same grammar SHALL work with `adr` substituted for `adrctl` when the artifact
-is reached through the supported symlink.
+The same grammar SHALL work when `adr` is the invoked basename.
 
-The initial public commands are:
+The initial built-in commands are:
 
 ```text
 help
@@ -101,18 +114,19 @@ generate
 upgrade-repository
 ```
 
-The initial report names under `generate` are:
+The initial built-in reports are:
 
 ```text
 toc
 graph
 ```
 
-No external `adr-*` or `adrctl-*` plugin discovery is supported.
+No external `adr-*` or `adrctl-*` command/plugin discovery is supported.
 
-### Global informational forms
+### Global forms
 
-These forms SHOULD be supported:
+The following informational forms SHALL be available without requiring project
+state:
 
 ```text
 adrctl help
@@ -121,23 +135,16 @@ adrctl --help
 adrctl --version
 ```
 
-`-h` and `--help` SHALL provide top-level help without requiring a project.
-`--version` SHALL provide version information without requiring a project.
-
-### Project-root option
-
-Commands that operate on project state SHALL accept:
+Commands that use project state SHALL support:
 
 ```text
 --project-root PATH
 ```
 
-as an explicit root override.  The option is global and SHALL be interpreted
-before project discovery.
+as an explicit global project-root override.
 
-The option MAY appear before the command.  The implementation MAY also accept it
-in a command-specific position when doing so is unambiguous, but documentation
-SHALL use the global form.
+Unknown commands or options SHALL fail with status 2 and SHALL NOT trigger
+external executable discovery.
 
 ## Project Discovery
 
@@ -146,26 +153,29 @@ in this order:
 
 1. `--project-root PATH`;
 2. process-environment `ADRCTL_PROJECT_ROOT`;
-3. nearest recognized project marker while walking upward from cwd;
-4. Git work-tree root, when available;
+3. nearest recognized ancestor marker while walking upward from cwd;
+4. Git work-tree root, when Git can determine one; and
 5. cwd.
 
-Recognized project markers are:
+Recognized ancestor markers are:
 
-- `.adr-dir`;
+- a `.adr-dir` file;
 - an existing `doc/adr` directory; or
-- `.env` containing at least one supported project-scoped `ADRCTL_` assignment.
+- a `.env` file containing at least one syntactically valid assignment whose key
+  begins with `ADRCTL_`.
 
-An unrelated `.env` SHALL NOT establish project context.
+A `.env` containing no `ADRCTL_` assignment SHALL NOT establish `adrctl` project
+context.
 
-`ADRCTL_PROJECT_ROOT` is process-environment configuration only.  It SHALL NOT be
-a valid project `.env` assignment and SHALL NOT, by itself, make a `.env` file a
-project marker.
+The discovery test deliberately does not decide whether a namespaced key is
+supported.  A misspelled or source-inappropriate `ADRCTL_` assignment establishes
+the nearest context and then fails configuration validation.  It SHALL NOT be
+silently skipped in favor of a more distant ancestor.
 
-When multiple ancestor markers exist, the nearest ancestor containing any
-recognized marker SHALL win.
+When multiple ancestor markers exist, the nearest marked ancestor SHALL win
+regardless of marker type.
 
-### init exception
+### init discovery exception
 
 `init` creates project context.  Unless `--project-root` or process-environment
 `ADRCTL_PROJECT_ROOT` is supplied, `init` SHALL use cwd as `PROJECT_ROOT` and
@@ -173,10 +183,11 @@ SHALL NOT climb to a Git root before initialization.
 
 ## Project Configuration
 
-After `PROJECT_ROOT` is known, `adrctl` SHALL read `${PROJECT_ROOT}/.env` when the
-file exists.
+After `PROJECT_ROOT` is selected, `adrctl` SHALL read `${PROJECT_ROOT}/.env` when
+it exists.
 
-The file SHALL be parsed as data and SHALL never be sourced or evaluated.
+The file SHALL be parsed as inert data.  It SHALL NOT be sourced, evaluated, or
+shell-expanded.
 
 ### .env grammar
 
@@ -186,7 +197,7 @@ The parser SHALL accept:
 - full-line comments whose first nonblank character is `#`;
 - optional `export` before an assignment;
 - `KEY=VALUE` assignments;
-- optional horizontal/ordinary shell whitespace around key and value; and
+- surrounding whitespace around keys and values; and
 - one matching outer layer of single or double quotes around a value.
 
 The parser SHALL NOT perform:
@@ -194,7 +205,7 @@ The parser SHALL NOT perform:
 - parameter expansion;
 - command substitution;
 - backtick evaluation;
-- escape-sequence interpretation;
+- shell escape interpretation;
 - nested quote parsing; or
 - shell execution.
 
@@ -204,14 +215,16 @@ Keys SHALL match:
 [A-Za-z_][A-Za-z0-9_]*
 ```
 
-Non-`ADRCTL_` keys SHALL be ignored.
+Non-`ADRCTL_` keys are ignored by `adrctl`.
 
-An unknown or source-inappropriate `ADRCTL_` key in the selected project `.env`
-SHALL fail configuration validation with status 2.
+An unknown `ADRCTL_` project key SHALL fail with status 2.
 
-### Initial supported project keys
+`ADRCTL_PROJECT_ROOT` is valid only as process-environment/CLI input.  If it is
+present in project `.env`, configuration validation SHALL fail with status 2.
 
-The initial project `.env` namespace is:
+### Initial project keys
+
+Project `.env` supports:
 
 ```text
 ADRCTL_ADR_DIR
@@ -225,14 +238,9 @@ The process environment additionally supports:
 
 ```text
 ADRCTL_PROJECT_ROOT
-ADRCTL_ADR_DIR
-ADRCTL_TEMPLATE
-ADRCTL_FILENAME_PATTERN
-ADRCTL_TEMPLATE_START_DELIMITER
-ADRCTL_TEMPLATE_END_DELIMITER
 ```
 
-Legacy process-environment compatibility inputs are:
+Legacy process-environment compatibility inputs include:
 
 ```text
 ADR_TEMPLATE
@@ -243,12 +251,7 @@ ADR_PAGER
 PAGER
 ```
 
-Where a modern and legacy variable control the same concept at the same process
-environment layer, the `ADRCTL_` variable SHALL win.
-
-### General precedence
-
-For project-scoped settings, effective value precedence is:
+For project-scoped settings, effective precedence is:
 
 ```text
 command-line option
@@ -260,35 +263,31 @@ built-in default
 
 Higher-precedence values replace lower-precedence values for the same setting.
 
-## Path Semantics and ADR Directory
+## Path and ADR Directory Semantics
 
-A configured path beginning with `/` is absolute.
+A configured path beginning with `/` is absolute.  Other configured project paths
+resolve against `PROJECT_ROOT` unless a command explicitly defines another base.
 
-Other configured paths SHALL be resolved relative to `PROJECT_ROOT`, unless a
-command explicitly documents another path base.
+The ADR directory is selected in this order:
 
-The ADR directory SHALL be selected in this order:
-
-1. explicit command option when one is defined;
+1. an explicit command-specific ADR-directory option, if a future command defines
+   one;
 2. process-environment `ADRCTL_ADR_DIR`;
 3. project `.env` `ADRCTL_ADR_DIR`;
-4. `.adr-dir` content at `PROJECT_ROOT`;
+4. `.adr-dir` content at `PROJECT_ROOT`; and
 5. `doc/adr` relative to `PROJECT_ROOT`.
 
-`.adr-dir` content SHALL be parsed as a path value, not shell code.
+`.adr-dir` is parsed as data.  It is never sourced.
 
-The ADR directory MAY be outside `PROJECT_ROOT` when an explicit absolute path is
-configured.  Commands SHALL still treat that resolved directory as the boundary
-for ADR filenames and references.
+An explicit absolute ADR directory MAY live outside `PROJECT_ROOT`.  Once
+resolved, that directory remains the boundary for ADR filenames and references.
 
-## Rendering Boundary
+## Rendering Responsibility
 
-`adrctl` owns value acquisition and transformation.
+`adrctl` owns ADR-specific value acquisition and transformation.  `mktext` owns
+literal textual substitution.
 
-`mktext` owns literal textual substitution.
-
-`adrctl` SHALL prepare a Bash associative-array rendering context containing, as
-applicable:
+The render context SHALL include, as applicable:
 
 ```text
 NUMBER
@@ -301,171 +300,148 @@ PROJECT_ROOT
 ADR_DIR
 ```
 
-Future keys MAY be added without changing the meaning of existing keys.
-
-### Context values
-
 `NUMBER` is the logical decimal ADR number without forced padding.
 
-`NUMBER4` is the logical number rendered with a minimum width of four decimal
-digits and leading zeroes.  Values larger than four digits are not truncated.
+`NUMBER4` is the same logical number with a minimum width of four digits and
+leading zeroes.  Values larger than four digits are not truncated.
 
-`TITLE` is the title formed from the title arguments supplied to `new`.
+`TITLE` is formed by joining title arguments with single spaces.
 
-`TITLE_SLUG` is a lowercase hyphen-separated filename slug.  The compatibility
-implementation SHALL:
+`TITLE_SLUG` is a lowercase, hyphen-separated filename slug.  Runs of
+non-alphanumeric title characters become one separator; leading/trailing
+separators are removed.
 
-1. treat runs of non-alphanumeric title characters as separators;
-2. collapse each separator run to one `-`;
-3. lowercase alphabetic characters using the supported runtime locale behavior
-   chosen by the implementation; and
-4. remove leading and trailing separators.
-
-The compatibility corpus SHALL lock down representative ASCII punctuation,
-whitespace, mixed-case, and empty/degenerate slug cases before release.
-
-`DATE` defaults to the current local calendar date in `YYYY-MM-DD` form.
+`DATE` defaults to the local calendar date in `YYYY-MM-DD` form.
 Process-environment `ADR_DATE` remains a compatibility override for created ADRs.
-A future explicit modern date option MAY take higher precedence.
 
-`STATUS` defaults to:
+The ordinary compatibility-oriented `new` status defaults to:
 
 ```text
 Accepted
 ```
 
-for an ordinary compatibility-oriented `new` operation.
+## Body Template Selection
 
-`PROJECT_ROOT` and `ADR_DIR` are the resolved absolute or normalized project
-locations used by the current operation.
+The ADR body template is selected in this order:
 
-## Template Selection
-
-For an ordinary `new` command, the body template SHALL be selected in this order:
-
-1. explicit command template option, when supplied;
+1. explicit `--template PATH`;
 2. process-environment `ADRCTL_TEMPLATE`;
 3. legacy process-environment `ADR_TEMPLATE`;
 4. project `.env` `ADRCTL_TEMPLATE`;
-5. `${ADR_DIR}/templates/template.md`, when that file exists;
-6. built-in `adrctl` default template.
+5. `${ADR_DIR}/templates/template.md`, when readable; and
+6. the built-in default template.
 
-A template path from configuration SHALL follow the project-relative path rules.
+Configured relative template paths resolve against `PROJECT_ROOT`.
 
-The built-in default template SHALL preserve the predecessor's structural
-contract: a level-one numbered/title heading, a Date line, `## Status`,
-`## Context`, `## Decision`, and `## Consequences` sections.  Its explanatory
-placeholder prose SHALL be independently authored for `adrctl`; exact predecessor
-prose is not a compatibility requirement.
+The built-in default body template SHALL preserve the established structural
+contract:
 
-The built-in initialization template SHALL likewise be independently authored
-while creating an Accepted first ADR whose title records the decision to use ADRs.
+- level-one numbered/title heading;
+- `Date:` line;
+- `## Status`;
+- `## Context`;
+- `## Decision`; and
+- `## Consequences`.
 
-## Delimiter Selection
+Placeholder/explanatory prose is independently authored for `adrctl`; exact
+predecessor prose is not a compatibility requirement.
 
-Explicit delimiter settings SHALL be supplied as a pair:
+## Body Template Delimiters
+
+Delimiter configuration in this section applies to ADR body templates only.
+Filename patterns are a separate rendering surface and always use the stable
+braced `{KEY}` grammar described later.
+
+Explicit body-template delimiters are supplied as a pair:
 
 ```text
 --start-delimiter STRING
 --end-delimiter STRING
 ```
 
-The effective delimiter pair is selected in this order:
+The effective pair is selected in this order:
 
 1. command-line pair;
 2. process-environment
    `ADRCTL_TEMPLATE_START_DELIMITER` / `ADRCTL_TEMPLATE_END_DELIMITER`;
-3. project `.env` pair;
-4. automatic detection.
+3. project `.env` pair; and
+4. automatic body-template detection.
 
-At a single explicit layer, one delimiter without the other SHALL be invalid
-usage/configuration.  Two empty strings are valid and select bare-key rendering.
+At one explicit layer, both options SHALL be supplied together.  One-sided
+configuration is invalid.  Two empty strings are valid and select `mktext`
+bare-key mode.
 
-When no explicit pair is effective, `adrctl` SHALL inspect the unrendered template
-for a braced token with this lexical form:
+When no explicit pair exists, `adrctl` SHALL inspect the unrendered body template
+for a token with this conceptual grammar:
 
 ```text
 { OPTIONAL-BLANKS KEY OPTIONAL-BLANKS }
-```
-
-where:
-
-```text
 KEY := [A-Za-z][A-Za-z0-9_-]*
 ```
 
-The candidate key, after the same uppercase normalization used by the delimited
-rendering contract, SHALL also exist in the prepared render context.
+The candidate key, after the same uppercase normalization used by delimited
+`mktext` rendering, SHALL also exist in the prepared render context.
 
-If at least one recognized braced context token exists, the selected delimiters
-are:
+If at least one recognized braced context token exists, the body delimiters are
+`{` and `}`.  Otherwise both delimiters are empty, selecting compatibility
+bare-token rendering.
 
-```text
-{
-}
-```
+An unrelated expression such as `{foo}` does not select braced mode when `FOO`
+is absent from the context.
 
-Otherwise the selected delimiters are both empty strings, selecting `mktext`
-bare-key mode for legacy templates.
+Automatic detection selects exactly one delimiter pair for one body render.
+`adrctl` SHALL NOT perform implicit mixed or two-pass body rendering.
 
-Automatic detection SHALL select one delimiter pair for one render.  It SHALL NOT
-perform a mixed or two-pass implicit render.
+Replacement values are inserted literally and nonrecursively according to the
+pinned `mktext` contract.
 
-Replacement values SHALL be inserted literally and nonrecursively according to
-the pinned `mktext` contract.
+## Filename Pattern
 
-## Filename Selection
+Filename-pattern rendering is independent from body-template delimiter settings.
+Filename patterns SHALL always use `mktext`'s stable braced `{KEY}` grammar.
 
-The default filename pattern is behaviorally equivalent to:
+The default pattern is:
 
 ```text
 {NUMBER4}-{TITLE_SLUG}.md
 ```
 
-The pattern SHALL be selected in this order:
+Pattern precedence is:
 
-1. explicit filename-pattern option, when supplied;
+1. explicit `--filename-pattern PATTERN`;
 2. process-environment `ADRCTL_FILENAME_PATTERN`;
-3. project `.env` `ADRCTL_FILENAME_PATTERN`;
+3. project `.env` `ADRCTL_FILENAME_PATTERN`; and
 4. built-in default.
 
-Filename patterns SHALL be rendered using the prepared context and `mktext`.
+The rendered filename SHALL be one basename inside `ADR_DIR`.  It SHALL NOT be
+absolute or contain `/`, and SHALL NOT escape the ADR directory through path
+traversal.
 
-The rendered result SHALL be one basename within `ADR_DIR`.  It SHALL NOT be
-absolute, contain `/`, or contain a `..` path component capable of escaping the
-ADR directory.
+An empty or unsafe rendered basename SHALL fail before mutation.
 
-A rendered empty basename or a basename that fails filesystem safety validation
-SHALL fail before mutation.
+## ADR File Recognition, Ordering, and Numbering
 
-## ADR File Recognition and Ordering
-
-A managed ADR filename SHALL have a basename matching the conceptual form:
+A managed ADR filename has the conceptual form:
 
 ```text
 DIGITS-TEXT.md
 ```
 
-where the leading `DIGITS` form the logical ADR number.
+where the leading digits form the logical ADR number.
 
-`list` and number allocation SHALL ignore unrelated files that do not have a
-leading decimal-number/hyphen Markdown ADR form.
+Unrelated Markdown/filesystem entries that do not match the numbered ADR shape
+are ignored by listing and number allocation.
 
-ADR ordering SHALL be numeric by logical ADR number, with a stable basename
-fallback for duplicate numeric prefixes.
+ADR ordering is numeric by logical number, with basename ordering as a stable
+tie-breaker for duplicate numeric prefixes.
 
-## Number Allocation
+A new ADR chooses one greater than the greatest recognized logical number.  When
+no recognized ADR exists, the first candidate number is 1.
 
-For a new ADR, `adrctl` SHALL scan recognized ADR filenames and choose one greater
-than the greatest existing logical number.  When no recognized ADR exists, the
-candidate number is 1.
-
-The destination SHALL be protected against overwrite if another process creates
-the same name after preflight.
-
-Concurrent automatic sequencing is not guaranteed.  A clean collision SHALL fail
-with status 1 or MAY be retried a small bounded number of times before failing.
-No retry may overwrite the competing file.
+The final destination SHALL never overwrite a file created by another process
+after preflight.  A collision fails with status 1 or MAY be retried a bounded
+number of times.  The initial product does not guarantee serialized multi-writer
+number allocation.
 
 ## ADR Reference Resolution
 
@@ -477,16 +453,16 @@ Commands accepting an ADR reference SHALL support:
 
 An exact filename match wins over partial matching.
 
-A numeric reference SHALL match the complete logical numeric prefix, ignoring
-leading zeroes in the reference.
+A numeric reference matches the complete logical numeric prefix and ignores
+leading zeroes in the user reference.
 
 Zero matches SHALL fail with status 1.
 
 More than one match SHALL fail with status 1 as ambiguous and SHALL identify the
 candidate basenames on standard error.
 
-Selecting the first ambiguous match, as the predecessor happened to do, is an
-intentional safety deviation and is not supported.
+The predecessor's incidental first-match behavior is an intentional safety
+deviation and is not supported.
 
 ## Markdown Structural Contract
 
@@ -495,10 +471,9 @@ Markdown parser.
 
 For compatibility-oriented documents:
 
-- the title is the first level-one heading (`# `), conventionally the first line;
-- the status section begins at the exact heading `## Status`;
-- the status section ends at the next heading that terminates that level-two
-  section under the implementation's documented line-oriented rules; and
+- the title is the first level-one heading beginning with `# `;
+- the status section begins at exact heading `## Status`;
+- the status section ends when the next level-two section begins; and
 - relationship lines are ordinary Markdown links inserted within the Status
   section.
 
@@ -509,15 +484,15 @@ RELATIONSHIP [TARGET TITLE](TARGET-BASENAME)
 ```
 
 Mutations SHALL preserve unrelated document text and formatting where practical.
-The implementation SHALL NOT normalize the entire file merely to insert or remove
-the owned status/link structure.
+The implementation SHALL NOT normalize an entire Markdown document merely to
+modify owned relationship/status structure.
 
-When required structure is absent or ambiguous, mutating commands SHALL fail
-before replacing files rather than guessing a new insertion location.
+If required structure is absent, a mutating command SHALL fail rather than guess
+an insertion point.
 
 ## Multi-File Mutation Safety
 
-A command that intends to create or modify more than one file SHALL complete all
+Commands that intend to create or modify more than one file SHALL complete all
 reasonable validation before the first visible mutation.
 
 Preflight includes, as applicable:
@@ -525,24 +500,23 @@ Preflight includes, as applicable:
 - project/configuration validation;
 - ADR reference resolution;
 - destination validation;
-- template existence/readability;
-- renderability;
+- template readability;
+- body/filename renderability;
 - required Markdown structure;
 - file readability/writability;
-- relationship argument parsing; and
+- relationship argument validation; and
 - collision checks.
 
-The implementation SHALL prepare complete intended file contents before replacing
-existing files.
+Complete replacement contents SHALL be prepared before existing files are
+replaced.
 
-Existing files SHOULD be replaced using same-directory temporary files and atomic
-rename where practical.
+Existing files SHOULD use same-directory temporary files and atomic rename where
+practical.
 
 The project does not promise true cross-file transactional atomicity.  A rare
 filesystem failure after one atomic replacement may still leave a partially
-applied multi-file operation.  The implementation SHALL minimize this window and
-SHALL NOT preserve avoidable predecessor partial-write behavior as a compatibility
-feature.
+applied operation.  The implementation SHALL minimize that window and SHALL NOT
+preserve avoidable predecessor partial-write behavior as a compatibility feature.
 
 ## Command: init
 
@@ -552,46 +526,40 @@ Invocation:
 adrctl init [DIRECTORY]
 ```
 
-Without an explicit root override, `init` uses cwd as `PROJECT_ROOT`.
+Without an explicit project-root override, `init` uses cwd.
 
 When `DIRECTORY` is supplied:
 
-- it is interpreted relative to `PROJECT_ROOT` unless absolute;
-- the directory SHALL be created when needed; and
-- `.adr-dir` SHALL be written at `PROJECT_ROOT` with a project-relative path when
-  the supplied directory is project-relative, preserving the predecessor
-  compatibility marker.
+- a relative value resolves against `PROJECT_ROOT`;
+- the directory is created when necessary; and
+- `.adr-dir` is written at `PROJECT_ROOT` using the supplied project-relative
+  value when the value is relative.
 
 When `DIRECTORY` is omitted, the ADR directory defaults to `doc/adr` and `init`
-need not create `.adr-dir` merely to express that default.
+does not need to create `.adr-dir` merely to express the default.
 
-`init` SHALL create the first ADR using an initialization template and SHALL not
-open an interactive editor for that bootstrap ADR.
+`init` creates the first ADR without opening an editor.
 
-In an empty target ADR directory, the first ADR number SHALL be 1 and the default
-filename SHALL be compatible with:
+In an empty ADR directory, the default first pathname is compatible with:
 
 ```text
 0001-record-architecture-decisions.md
 ```
 
-If the target directory already contains ADRs, `init` SHALL NOT silently overwrite
-or recreate ADR 1.  The exact already-initialized diagnostic behavior SHALL be
-covered by tests.
+An already-populated ADR directory SHALL NOT be silently reinitialized.
 
-The created ADR pathname SHALL be written to standard output on success.
+On success, the created ADR pathname is written to standard output.
 
 ## Command: new
 
 Invocation:
 
 ```text
-adrctl new [-s REFERENCE]... [-l TARGET:LINK:REVERSE-LINK]... [NEW-OPTION...] TITLE...
+adrctl new [-s REFERENCE]... [-l TARGET:LINK:REVERSE-LINK]... [OPTIONS] TITLE...
 ```
 
-`TITLE...` arguments are joined with single spaces to form `TITLE`.
-
-An empty title SHALL fail with status 2.
+`TITLE...` arguments are joined with single spaces.  A missing/empty title is
+invalid usage.
 
 Inherited options are:
 
@@ -600,13 +568,15 @@ Inherited options are:
 -l TARGET:LINK:REVERSE-LINK
 ```
 
-`-s` MAY be repeated.  Each reference names an existing ADR to be superseded by
-the new ADR.
+Both MAY be repeated.
 
-`-l` MAY be repeated.  Each value SHALL contain exactly three logical fields:
-existing target reference, forward relationship text, and reverse relationship
-text.  The initial compatibility syntax uses `:` as the field separator.
-Malformed values SHALL fail before mutation.
+Each `-l` value SHALL contain exactly three non-empty colon-delimited logical
+fields: target reference, forward relationship text, and reverse relationship
+text.  A fourth field or additional colon is rejected as malformed input.
+
+This is an intentional deviation from `adr-tools` 3.0.0, whose `cut -f 1/2/3`
+implementation silently discarded fourth-and-later fields.  `adrctl` does not
+preserve silent truncation of malformed relationship specifications.
 
 Modern rendering options include:
 
@@ -617,41 +587,47 @@ Modern rendering options include:
 --end-delimiter STRING
 ```
 
-The command SHALL:
+A successful command SHALL:
 
 1. resolve project/configuration/template inputs;
-2. resolve every `-s` and `-l` target uniquely;
-3. allocate the candidate ADR number;
+2. resolve all `-s`/`-l` targets uniquely;
+3. allocate the candidate number;
 4. prepare context, filename, and body;
-5. prepare all reciprocal relationship/status changes;
-6. preflight the complete intended change set;
-7. create/replace files according to the mutation-safety contract;
-8. invoke the selected editor unless editing is disabled; and
-9. write the created ADR pathname to standard output.
+5. prepare all reciprocal status/relationship changes;
+6. preflight the complete change set;
+7. publish the new file without overwriting a competing destination;
+8. replace prepared existing files using the mutation-safety contract;
+9. invoke the selected editor; and
+10. write the created ADR pathname to standard output.
 
-For each `-s TARGET`, successful compatibility behavior includes reciprocal
-relationships equivalent in meaning to:
+For each `-s TARGET`, compatibility relationship text is:
 
 ```text
 new ADR -> Supercedes -> TARGET
 TARGET  -> Superceded by -> new ADR
 ```
 
-and removal of the plain `Accepted` status line from the superseded target when
+The historical misspelling is retained where it is observable compatibility
+output.  The plain `Accepted` status line in the superseded target is removed when
 that line is the status being replaced.
-
-The historical misspelling above is retained where compatibility output requires
-it.  New descriptive prose may use standard spelling.
 
 For each `-l TARGET:LINK:REVERSE-LINK`, the new ADR receives `LINK` to TARGET and
 TARGET receives `REVERSE-LINK` to the new ADR.
 
-The editor is selected by `VISUAL`, then `EDITOR`, then a no-op fallback.
+Repeated relationships to the same target SHALL be aggregated before replacing
+that target so one prepared mutation does not discard another.
 
-If the editor fails after files were successfully created, `new` SHALL return a
-nonzero operational status and diagnose the editor failure.  It SHALL NOT delete
-an otherwise successfully created ADR merely to simulate transactionality across
-an interactive external process.
+Editor selection is:
+
+```text
+VISUAL
+EDITOR
+no-op
+```
+
+If the editor fails after files were successfully written, `new` SHALL return an
+operational failure and diagnose the editor failure.  It SHALL NOT delete the
+created ADR to simulate a transaction across an interactive external process.
 
 ## Command: link
 
@@ -663,15 +639,18 @@ adrctl link SOURCE LINK TARGET REVERSE-LINK
 
 SOURCE and TARGET are ADR references.
 
-The command SHALL resolve both references uniquely, validate both Status sections,
-prepare both outputs, then add reciprocal relationship lines:
+Both references and both Status sections SHALL be validated before either file is
+replaced.
+
+Successful behavior adds:
 
 ```text
 SOURCE -> LINK         -> TARGET
 TARGET -> REVERSE-LINK -> SOURCE
 ```
 
-Both files SHALL be preflighted before either is replaced.
+If SOURCE and TARGET resolve to the same ADR, both relationship lines are prepared
+in one replacement.
 
 ## Command: list
 
@@ -684,15 +663,11 @@ adrctl list
 The command SHALL write one recognized ADR pathname per line to standard output in
 numeric ADR order.
 
-Paths SHOULD use the resolved ADR-directory form consistently.  The compatibility
-corpus SHALL lock down whether output is project-relative or carries the resolved
-ADR-directory prefix for default and configured directories.
+Paths are presented relative to the caller's cwd when possible, preserving the
+useful predecessor-style path surface from nested directories.
 
-If the ADR directory does not exist, `list` SHALL fail with status 1 and write a
-diagnostic to standard error.  It SHALL NOT write an error sentence to standard
-output.
-
-The stderr choice is an intentional cleanup of predecessor stream behavior.
+If the ADR directory does not exist, `list` SHALL fail with status 1 and diagnose
+on standard error.  It SHALL NOT write an error sentence into result stdout.
 
 ## Command: help
 
@@ -702,12 +677,8 @@ Invocation:
 adrctl help [COMMAND [SUBCOMMAND...]]
 ```
 
-Without arguments, help SHALL summarize available built-in commands.
-
-With command/report arguments, help SHALL display the corresponding built-in help
-when available.
-
-Help SHALL NOT discover external plugin executables.
+Without arguments, help summarizes built-in commands.  Built-in command/report
+subjects MAY request focused help.  External plugin help is never discovered.
 
 Pager selection is:
 
@@ -717,9 +688,9 @@ PAGER
 more
 ```
 
-An explicit unpaged help mode MAY bypass a pager.
+`ADR_PAGER` takes precedence over `PAGER`.
 
-Pager configuration SHALL not be executed with `eval`.
+Pager configuration SHALL NOT be executed with `eval`.
 
 ## Command: generate
 
@@ -729,11 +700,15 @@ Invocation:
 adrctl generate [REPORT [OPTION...]]
 ```
 
-With no REPORT, the command SHALL list supported built-in report names, one per
-line, in deterministic order.
+With no REPORT, the command SHALL list built-in report names in deterministic
+order:
 
-Unknown report names SHALL fail with status 2 and SHALL NOT attempt external
-report-generator discovery.
+```text
+toc
+graph
+```
+
+Unknown reports fail with status 2.
 
 ### generate toc
 
@@ -743,22 +718,18 @@ Invocation:
 adrctl generate toc [-i INTRO_FILE] [-o OUTRO_FILE] [-p LINK_PREFIX]
 ```
 
-The report SHALL write Markdown to standard output beginning with:
+The report writes Markdown to standard output beginning with:
 
 ```text
 # Architecture Decision Records
 ```
 
-When `INTRO_FILE` is supplied, its contents SHALL be inserted after the heading
-and before ADR entries.
+Readable `INTRO_FILE` content is inserted after the heading and before ADR
+entries.  Each ADR entry is a Markdown bullet linking its title to its basename,
+optionally prefixed by `LINK_PREFIX`.  Readable `OUTRO_FILE` content follows the
+entries.
 
-Each ADR entry SHALL be a Markdown bullet linking the ADR title to its basename,
-optionally prefixed by `LINK_PREFIX`.
-
-When `OUTRO_FILE` is supplied, its contents SHALL follow the entries.
-
-Input files SHALL be validated for readability before report output begins where
-practical so a missing intro/outro does not produce a misleading partial report.
+Intro/outro files SHALL be validated before report output begins where practical.
 
 ### generate graph
 
@@ -768,22 +739,22 @@ Invocation:
 adrctl generate graph [-p LINK_PREFIX] [-e LINK_EXTENSION]
 ```
 
-The default `LINK_EXTENSION` is:
+The default link extension is:
 
 ```text
 .html
 ```
 
-The command SHALL emit Graphviz DOT source to standard output.  It SHALL NOT
-invoke `dot` or require Graphviz to be installed.
+The command SHALL emit Graphviz DOT source to standard output and SHALL NOT invoke
+Graphviz.
 
-Each ADR node SHALL include its title and a URL derived from the ADR basename,
-`LINK_PREFIX`, and `LINK_EXTENSION`.
+Each node contains its ADR title and a URL derived from basename, `LINK_PREFIX`,
+and `LINK_EXTENSION`.
 
-The report SHOULD preserve the predecessor's dotted sequential edges between
-successive ADR numbers and relationship edges derived from recognized Status
-links, except where malformed/ambiguous documents are rejected by the safer
-parser contract.
+The report preserves predecessor-style dotted edges between successive logical
+ADR numbers and emits relationship edges derived from recognized Status links.
+Reverse relationship labels ending in ` by` are omitted from graph relationship
+edges to avoid duplicate reciprocal presentation, preserving predecessor intent.
 
 ## Command: upgrade-repository
 
@@ -793,8 +764,7 @@ Invocation:
 adrctl upgrade-repository
 ```
 
-The inherited initial upgrade behavior SHALL convert predecessor Date lines of
-the form:
+The initial inherited migration converts Date lines of the form:
 
 ```text
 Date: DD/MM/YYYY
@@ -808,19 +778,15 @@ Date: YYYY-MM-DD
 
 for recognized ADR files.
 
-The command SHALL preflight the set of files it intends to modify and SHALL use
+Other lines are preserved.  Files already using ISO dates remain unchanged by a
+second run.  The command SHALL preflight/pre-render intended replacements and use
 atomic per-file replacement where practical.
 
-Lines not matching the documented legacy Date form SHALL be preserved.
+The command performs no unrelated repository migrations.
 
-The command SHALL be idempotent for files already using `YYYY-MM-DD` dates.
+## External Process Boundaries
 
-No unrelated repository migration SHALL be performed merely because the command
-is named `upgrade-repository`.
-
-## Editor, Pager, Git, and Graphviz Boundaries
-
-The editor selection order for ordinary `new` operations is:
+Editor precedence for ordinary `new` is:
 
 ```text
 VISUAL
@@ -828,7 +794,7 @@ EDITOR
 no-op
 ```
 
-The pager selection order for paged help is:
+Pager precedence for help is:
 
 ```text
 ADR_PAGER
@@ -836,52 +802,50 @@ PAGER
 more
 ```
 
-Git MAY be queried for project-root fallback.  Core ADR commands SHALL NOT
-implicitly stage, commit, checkout, or otherwise mutate Git repository state.
+Git MAY be queried for project-root fallback.  Core ADR commands SHALL NOT stage,
+commit, checkout, or otherwise mutate Git state automatically.
 
-`generate graph` emits DOT.  Graphviz is not an initial core runtime dependency.
+`generate graph` emits DOT.  Graphviz is not a core runtime dependency.
+
+External command configuration SHALL be invoked without `eval`.
 
 ## Standard Streams
 
-Standard output is reserved for requested command results, including:
+Standard output is reserved for requested results, including:
 
 - created ADR pathname;
 - ADR lists;
 - generated reports;
 - requested help when directly emitted; and
-- version information.
+- requested version information.
 
 Diagnostics, warnings, migration notices, and errors SHALL go to standard error.
 
 ## Exit Statuses
 
-The stable initial status vocabulary is:
+The stable initial public status vocabulary is:
 
 ```text
-0  success
+0  successful completion
 1  operational/domain failure
 2  invalid usage or invalid adrctl configuration
 ```
 
-Examples of status 1 include unresolved or ambiguous ADR references, unreadable or
-unwritable required files, detected concurrent destination collisions, and
-external editor/pager failure when that failure prevents successful command
-completion.
+Status 1 examples include unresolved/ambiguous references, unreadable required
+files, detected destination collisions, and external editor/pager failures that
+prevent successful completion.
 
-Examples of status 2 include unknown commands/options, missing required arguments,
+Status 2 examples include unknown commands/options, missing required arguments,
 malformed `-l` specifications, unknown `ADRCTL_` project keys, and invalid
-one-sided delimiter pairs.
+delimiter pairs.
 
-Internal `mktext` statuses SHALL be mapped to this public vocabulary.
+Internal `mktext` statuses SHALL be translated into this public vocabulary.
 
-Signal termination MAY retain normal Bash signal-derived statuses.
+Signal termination MAY retain Bash signal-derived statuses.
 
 ## Version Output
 
-`--version` SHALL identify the product as `adrctl` and report the embedded version,
-source-revision timestamp, and source commit in a stable, testable format.
-
-A compatible initial format is:
+`--version` SHALL use this stable three-line shape:
 
 ```text
 adrctl VERSION
@@ -889,22 +853,22 @@ build_date=BUILD_DATE
 commit=BUILD_COMMIT
 ```
 
-This format SHALL be identical whether invoked as `adrctl --version` or through
-`adr --version`.
+The output is identical when the artifact is invoked as `adrctl` or through the
+`adr` symlink.
 
-## Dependency and Network Policy
+## Dependency Verification and Network Policy
 
-Normal runtime commands SHALL NOT fetch dependencies or templates from the
+Normal runtime operations SHALL NOT fetch dependencies or templates from the
 network.
 
-The verified `mktext` dependency is acquired only during build/release workflows
-and embedded into the final artifact.
-
-Build-time `mktext` v0.0.6 verification uses its published SHA-256 digest:
+The build/release process pins `mktext` v0.0.6.  The expected release-asset
+SHA-256 is:
 
 ```text
 03d8b99188251ffeca394cd5737e8876813190d14d671109f2fbe236f4b13c01
 ```
+
+The artifact SHALL be verified before it is embedded unchanged into `dist/adrctl`.
 
 ## Build and Release Contract
 
@@ -926,78 +890,95 @@ clean
 distclean
 ```
 
-The release workflow SHALL validate source and behavior, acquire/verify build
-dependencies, build the exact release artifact, test that artifact, generate a
-SHA-256 checksum, produce GitHub provenance attestation when supported, and
-publish the exact validated bytes.
+The maintained module order used for assembly SHALL be explicit.
 
-The release workflow supplies the SemVer value to Make.  Make SHALL NOT calculate
-a different release version independently.
+Release automation SHALL:
+
+1. calculate/validate the SemVer release version without creating an early tag;
+2. validate maintained source;
+3. acquire and verify pinned build dependencies;
+4. build the exact release-version `dist/adrctl` artifact;
+5. validate the exact artifact with the behavior suite;
+6. validate the exact artifact under Bash 4.3;
+7. generate and verify a SHA-256 checksum;
+8. produce GitHub provenance attestation when supported; and
+9. create the tag/release and publish the exact validated artifact/checksum.
+
+The release workflow supplies the release version to Make.  Make SHALL NOT
+independently calculate a different release version.
+
+The project publishes one canonical `adrctl` executable artifact.  A separate
+maintained `adr` artifact is not required.
 
 ## Documentation Contract
 
-The repository documentation roles are:
+Documentation responsibilities are:
 
 ```text
 README.md          human-facing product overview and use
-AGENTS.md          contributor/agent operational guidance
+AGENTS.md          contributor/agent operating guidance
 doc/adr/*.md       architectural rationale and decisions
 doc/adrctl-spec.md normative public behavioral contract
 doc/reference/     generated source-reference documentation
 source comments    implementation-level contracts and constraints
 ```
 
-Generated reference documentation SHALL be derived from Doxygen-compatible Bash
-comments and SHOULD be committed/published for browser access.
+Hand-maintained Bash source SHALL use Doxygen-compatible documentation comments
+for modules, functions, important state, side effects, streams, statuses, and
+non-obvious invariants where applicable.
+
+`make docs` SHALL regenerate browsable reference documentation.  GitHub Pages
+SHOULD publish the generated reference output from the default branch.
 
 ## Development Contract
 
-Behavioral or architectural changes SHALL normally proceed:
-
-document intent -> implementation -> observable-behavior tests -> generated
-artifact validation -> complete diff review.
-
-Tests MAY be written first to reproduce a bug or characterize unknown behavior,
-but documentation SHALL describe the intended final contract before the change is
-considered complete.
-
-Tests SHALL prefer public commands, streams, statuses, files, and generated
-artifacts over private helper structure.
-
-## Compatibility Classification
-
-Every predecessor behavior characterized by the initial corpus SHALL be recorded
-as:
+Normal behavioral/architectural work follows:
 
 ```text
-Compatible
-Intentional deviation
-New adrctl behavior
+document intent
+-> implement the smallest coherent change
+-> add/update observable-behavior tests
+-> validate the generated artifact
+-> review the complete diff
 ```
 
-Known intentional deviations include at least:
+Tests MAY be written first to reproduce a defect or characterize unknown behavior.
+The intended final behavior still belongs in the normative documentation before
+the change is complete.
+
+Tests SHALL prefer public commands, streams, statuses, files, filesystem effects,
+configuration, reports, and literal generated-artifact behavior over private
+helper structure.
+
+## Known Intentional Deviations from adr-tools 3.0.0
+
+The initial intentional-deviation set includes:
 
 - ambiguous partial ADR references fail instead of choosing the first match;
 - multi-file operations preflight before mutation and use atomic per-file
   replacement where practical;
-- configuration is parsed as data rather than evaluated shell code;
-- external plugin discovery is not supported initially;
+- project configuration is parsed as data rather than evaluated shell code;
+- any namespaced `ADRCTL_` project assignment establishes context and invalid
+  namespaced keys then fail validation rather than being silently skipped;
+- external plugin/subcommand discovery is not supported initially;
 - ordinary failure diagnostics use stderr rather than polluting result stdout;
+- malformed `-l` specifications with fourth-and-later colon fields fail instead
+  of silently discarding those fields;
 - built-in explanatory template prose is independently authored; and
 - `adrctl` is the canonical product identity, with `adr` supported through a
   symlink to the same artifact.
 
-## Non-Goals for the Initial Release
+## Initial Non-Goals
 
 The initial release does not promise:
 
 - external plugin discovery;
 - general Markdown parsing or formatting;
-- automatic Git commits or staging;
+- automatic Git staging/commits;
 - automatic Graphviz image rendering;
 - cross-file transactional filesystem semantics;
-- guaranteed multi-process ADR number sequencing;
+- guaranteed multi-process sequential ADR number allocation;
 - runtime dependency downloads;
-- preservation of accidental predecessor `eval`, first-match, or partial-write
-  implementation behavior; or
+- preservation of predecessor `eval`, first-match, silent-truncation, or
+  avoidable partial-write implementation behavior; or
 - arbitrary renaming of the `adrctl` artifact as a supported product identity.
