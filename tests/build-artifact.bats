@@ -82,3 +82,26 @@ EOF
   [ "${status}" -ne 0 ]
   [ ! -e "${dist_dir}/adrctl.bash" ]
 }
+
+@test "clean removes generated distribution test results and vendor state" {
+  local fixture_root cache_dir dist_dir results_dir
+
+  fixture_root="${BATS_TEST_TMPDIR}/clean"
+  cache_dir="${fixture_root}/vendor"
+  dist_dir="${fixture_root}/dist"
+  results_dir="${fixture_root}/test-results"
+  mkdir -p "${cache_dir}" "${dist_dir}" "${results_dir}"
+  : >"${cache_dir}/dependency"
+  : >"${dist_dir}/artifact"
+  : >"${results_dir}/results"
+
+  run make -C "${REPO_ROOT}" clean \
+    VENDOR_DIR="${cache_dir}" \
+    DIST_DIR="${dist_dir}" \
+    TEST_RESULTS_DIR="${results_dir}"
+
+  [ "${status}" -eq 0 ]
+  [ ! -e "${cache_dir}" ]
+  [ ! -e "${dist_dir}" ]
+  [ ! -e "${results_dir}" ]
+}

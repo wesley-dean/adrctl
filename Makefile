@@ -163,8 +163,6 @@ checksums: build
 	cd "$(DIST_DIR)" && sha256sum "$(notdir $(DIST_SCRIPT))" >"$(notdir $(DIST_CHECKSUM))"
 
 clean:
-	rm -rf "$(DIST_DIR)" "$(TEST_RESULTS_DIR)"
+	rm -rf "$(DIST_DIR)" "$(TEST_RESULTS_DIR)" "$(VENDOR_DIR)"
 
 distclean: clean docs-clean
-	rm -f "$(VENDOR_DIR)"/mktext-v*.bash "$(VENDOR_DIR)/mktext.bash" "$(DOXYGEN_BASH_FILTER)"
-	-rmdir "$(VENDOR_DIR)" >/dev/null 2>&1

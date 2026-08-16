@@ -360,3 +360,6 @@ $RECYCLE.BIN/
 
 # SonarScanner
 .scannerwork
+
+# Generated build dependencies
+vendor/
