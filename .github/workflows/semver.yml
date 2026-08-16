@@ -65,8 +65,8 @@ jobs:
           ADR_PAGER: cat
           VISUAL: "true"
         run: |
-          bash -n dist/adrctl
-          test -x dist/adrctl
+          bash -n dist/adrctl.bash
+          test -x dist/adrctl.bash
           bats tests/*.bats
 
       - name: Validate exact release artifact with Bash 4.3
@@ -80,14 +80,14 @@ jobs:
       - name: Verify checksum
         run: |
           cd dist
-          sha256sum -c adrctl.sha256
+          sha256sum -c adrctl.bash.sha256
 
       - name: Attest release artifacts
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
           subject-path: |
-            dist/adrctl
-            dist/adrctl.sha256
+            dist/adrctl.bash
+            dist/adrctl.bash.sha256
 
       - name: Create release
         uses: softprops/action-gh-release@718ea10b132b3b2eba29c1007bb80653f286566b # v3.0.1
@@ -100,5 +100,5 @@ jobs:
           draft: false
           prerelease: false
           files: |
-            dist/adrctl
-            dist/adrctl.sha256
+            dist/adrctl.bash
+            dist/adrctl.bash.sha256

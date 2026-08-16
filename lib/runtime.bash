@@ -26,10 +26,23 @@ readonly __adrctl_exit_operational=1
 readonly __adrctl_exit_usage=2
 
 ## @fn __adrctl_invoked_name()
-## @brief Writes the basename used to invoke the current generated artifact.
-## @retval 0 The basename was written.
+## @brief Writes the command name used for human-facing presentation.
+## @details Direct execution of the distribution artifact `adrctl.bash` is
+## normalized to the canonical command identity `adrctl`; an `adr` compatibility
+## symlink retains the historical name.
+## @retval 0 The presentation name was written.
 __adrctl_invoked_name() {
-  printf '%s\n' "${0##*/}"
+  local invoked
+
+  invoked="${0##*/}"
+  case "${invoked}" in
+    adrctl.bash)
+      printf '%s\n' 'adrctl'
+      ;;
+    *)
+      printf '%s\n' "${invoked}"
+      ;;
+  esac
 }
 
 ## @fn __adrctl_print_error()

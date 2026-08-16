@@ -10,19 +10,26 @@ implementation and tests are expected to satisfy.
 
 Normative terms such as SHALL, SHALL NOT, SHOULD, and MAY are used deliberately.
 
-During initial development, the new ADR corpus remains Proposed until the
-maintainer intentionally accepts it.  This specification is nevertheless the
-working implementation contract.  If source behavior conflicts with an ADR or
-this specification, the conflict SHALL be resolved explicitly rather than
-allowing implementation to become undocumented architecture.
+The accepted ADR corpus is the architectural authority for this specification.
+If source behavior conflicts with an ADR or this specification, the conflict SHALL
+be resolved explicitly rather than allowing implementation to become undocumented
+architecture.
 
 ## Product Identity and Compatibility Baseline
 
-The canonical project, product, release artifact, and executable name are:
+The canonical project, product, and installed command identity is:
 
 ```text
 adrctl
 ```
+
+The canonical generated distribution artifact is:
+
+```text
+adrctl.bash
+```
+
+under `dist/` in the source tree.
 
 The generated executable SHALL also support invocation through a symbolic link
 named:
@@ -35,9 +42,21 @@ The `adr` name is a compatibility invocation alias, not a separate product mode.
 Inherited commands SHALL use the same implementation, configuration, and
 filesystem behavior through either name.
 
-Help and diagnostic presentation SHOULD use the invoked basename when doing so
-makes examples clearer.  Version and provenance output SHALL always identify the
-installed product as `adrctl`.
+A shell alias that expands `adr` directly to the generated `adrctl.bash` path is
+also a supported invocation mechanism.  Because Bash removes the alias during
+command expansion and does not pass the alias token as `$0`, a plain shell alias
+cannot be distinguished from direct `adrctl.bash` execution by the script.
+
+Help and diagnostic presentation SHALL therefore follow these rules:
+
+- direct `adrctl.bash` execution presents canonical `adrctl`;
+- an installed or linked basename `adrctl` presents `adrctl`;
+- a detectable filesystem symlink basename `adr` presents `adr`; and
+- a plain shell alias named `adr` that expands to the `adrctl.bash` path presents
+  canonical `adrctl` because the alias name is unavailable to the script.
+
+Version and provenance output SHALL always identify the installed product as
+`adrctl`.
 
 The canonical predecessor comparator for the initial compatibility milestone is:
 
@@ -64,7 +83,7 @@ Intentional deviations SHALL be documented and regression-tested.
 The canonical generated consumer artifact is:
 
 ```text
-dist/adrctl
+dist/adrctl.bash
 ```
 
 It SHALL:
@@ -74,7 +93,9 @@ It SHALL:
 - contain the complete required runtime implementation in one file;
 - embed the verified `mktext` v0.0.6 release artifact unchanged;
 - contain exactly one effective `adrctl` product entrypoint;
-- remain executable through an `adr` symlink; and
+- remain executable directly, through an installed `adrctl` name, through an
+  `adr` filesystem symlink, and through a shell alias that expands to its path;
+  and
 - require no runtime network access for normal operation.
 
 The generated artifact SHALL embed:
@@ -100,7 +121,9 @@ The command grammar is conceptually:
 adrctl [GLOBAL-OPTION...] COMMAND [COMMAND-OPTION...] [ARGUMENT...]
 ```
 
-The same grammar SHALL work when `adr` is the invoked basename.
+The same grammar SHALL work when the executable is reached through the supported
+`adr` compatibility symlink or a shell alias that expands `adr` to the artifact
+path.
 
 The initial built-in commands are:
 
@@ -853,8 +876,9 @@ build_date=BUILD_DATE
 commit=BUILD_COMMIT
 ```
 
-The output is identical when the artifact is invoked as `adrctl` or through the
-`adr` symlink.
+The output is identical when the artifact is invoked as `adrctl.bash`, installed
+as `adrctl`, reached through the `adr` symlink, or reached through a shell alias
+that expands to the artifact path.
 
 ## Dependency Verification and Network Policy
 
@@ -868,7 +892,8 @@ SHA-256 is:
 03d8b99188251ffeca394cd5737e8876813190d14d671109f2fbe236f4b13c01
 ```
 
-The artifact SHALL be verified before it is embedded unchanged into `dist/adrctl`.
+The artifact SHALL be verified before it is embedded unchanged into
+`dist/adrctl.bash`.
 
 ## Build and Release Contract
 
@@ -897,18 +922,18 @@ Release automation SHALL:
 1. calculate/validate the SemVer release version without creating an early tag;
 2. validate maintained source;
 3. acquire and verify pinned build dependencies;
-4. build the exact release-version `dist/adrctl` artifact;
+4. build the exact release-version `dist/adrctl.bash` artifact;
 5. validate the exact artifact with the behavior suite;
 6. validate the exact artifact under Bash 4.3;
-7. generate and verify a SHA-256 checksum;
+7. generate and verify `dist/adrctl.bash.sha256`;
 8. produce GitHub provenance attestation when supported; and
 9. create the tag/release and publish the exact validated artifact/checksum.
 
 The release workflow supplies the release version to Make.  Make SHALL NOT
 independently calculate a different release version.
 
-The project publishes one canonical `adrctl` executable artifact.  A separate
-maintained `adr` artifact is not required.
+The project publishes one canonical `adrctl.bash` distribution artifact.  A
+separate maintained `adr` or duplicate `adrctl` release artifact is not required.
 
 ## Documentation Contract
 
@@ -965,8 +990,8 @@ The initial intentional-deviation set includes:
 - malformed `-l` specifications with fourth-and-later colon fields fail instead
   of silently discarding those fields;
 - built-in explanatory template prose is independently authored; and
-- `adrctl` is the canonical product identity, with `adr` supported through a
-  symlink to the same artifact.
+- `adrctl` is the canonical product identity, with `adr` supported through the
+  same artifact by filesystem symlink or ordinary shell alias semantics.
 
 ## Initial Non-Goals
 
@@ -981,4 +1006,5 @@ The initial release does not promise:
 - runtime dependency downloads;
 - preservation of predecessor `eval`, first-match, silent-truncation, or
   avoidable partial-write implementation behavior; or
-- arbitrary renaming of the `adrctl` artifact as a supported product identity.
+- arbitrary renaming of the `adrctl.bash` artifact as a supported product
+  identity.

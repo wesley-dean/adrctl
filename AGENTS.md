@@ -19,9 +19,9 @@ workflows where practical while improving configuration safety, filesystem
 preflight, build/release discipline, documentation, test coverage, and
 maintainability.
 
-The canonical product and release executable is `adrctl`.  The same generated
-artifact must also work when a user or packager creates an `adr` symbolic link to
-it.
+The canonical product and installed command identity is `adrctl`.  The generated
+distribution artifact is `dist/adrctl.bash`, and the same bytes must also work
+when installed as `adrctl` or reached through an `adr` symbolic link.
 
 The project is licensed under CC0 1.0 Universal.
 
@@ -47,7 +47,8 @@ Preserve these boundaries unless a later ADR intentionally changes them:
 
 - Bash 4.3+ is the minimum runtime.
 - Maintained source is modular and assembled into one generated executable.
-- The canonical generated artifact is `dist/adrctl`.
+- The canonical generated artifact is `dist/adrctl.bash` under ADR-019.
+- The canonical installed command identity remains `adrctl`.
 - The final artifact has one effective product entrypoint owned by `adrctl`.
 - Invocation through an `adr` symlink is a supported compatibility path.
 - Supported subcommands are built into the repository and generated artifact.
@@ -151,7 +152,7 @@ Build dependency:
 Treat maintained source under `src/` and `lib/` as the implementation source of
 truth once those directories exist.
 
-Do not edit `dist/adrctl` as though it were maintained source.
+Do not edit `dist/adrctl.bash` as though it were maintained source.
 
 The Makefile must enumerate build inputs explicitly.  Do not replace explicit
 source order with implicit plugin/module discovery.
@@ -321,7 +322,7 @@ Prefer observable behavior:
 - generated reports;
 - configuration precedence;
 - dependency verification; and
-- literal execution of `dist/adrctl`.
+- literal execution of `dist/adrctl.bash`.
 
 Do not couple tests to private helper names merely because they are convenient to
 call.
@@ -361,7 +362,7 @@ Report only validation actually performed.  Do not invent successful tool output
 
 ## Release Discipline
 
-The release artifact is `dist/adrctl`.
+The release artifact is `dist/adrctl.bash`.
 
 Release acceptance concerns the exact artifact bytes that will be published.
 
@@ -370,7 +371,7 @@ artifact with the chosen SemVer, validates the artifact, generates SHA-256,
 produces provenance attestation when supported, and publishes those exact bytes.
 
 Do not create a separately maintained `adr` executable.  Compatibility uses a
-symlink to `adrctl`.
+symlink to the installed `adrctl` command.
 
 ## Common Failure Modes
 
@@ -378,7 +379,7 @@ Avoid:
 
 - copying `adr-tools` implementation code into the rewrite;
 - treating GPL-covered implementation expression as a shortcut to compatibility;
-- editing generated `dist/adrctl` directly;
+- editing generated `dist/adrctl.bash` directly;
 - embedding an unverified or moving `mktext` dependency;
 - patching `mktext` during `adrctl` assembly;
 - allowing embedded `mktext` to claim the `adrctl` process entrypoint;

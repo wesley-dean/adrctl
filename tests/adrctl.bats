@@ -2,7 +2,7 @@
 
 setup() {
   REPO_ROOT="$(cd "${BATS_TEST_DIRNAME}/.." && pwd -P)"
-  ADRCTL="${REPO_ROOT}/dist/adrctl"
+  ADRCTL="${REPO_ROOT}/dist/adrctl.bash"
   WORK="${BATS_TEST_TMPDIR}/project"
   mkdir -p "${WORK}"
 
@@ -74,6 +74,22 @@ EOF
   [[ "${output}" == *$'\ncommit='* ]]
 }
 
+@test "direct adrctl.bash help normalizes to canonical adrctl presentation" {
+  run env ADR_PAGER=cat "${ADRCTL}" help
+
+  [ "${status}" -eq 0 ]
+  [[ "${output}" == Usage:\ adrctl\ * ]]
+}
+
+@test "adrctl symlink invokes the same generated artifact" {
+  ln -s "${ADRCTL}" "${WORK}/adrctl"
+
+  run env ADR_PAGER=cat "${WORK}/adrctl" help
+
+  [ "${status}" -eq 0 ]
+  [[ "${output}" == Usage:\ adrctl\ * ]]
+}
+
 @test "adr symlink invokes the same generated artifact" {
   ln -s "${ADRCTL}" "${WORK}/adr"
 
@@ -83,13 +99,26 @@ EOF
   [[ "${output}" == adrctl\ * ]]
 }
 
-@test "help presentation follows the invoked basename" {
+@test "help presentation follows the detectable adr symlink basename" {
   ln -s "${ADRCTL}" "${WORK}/adr"
 
   run env ADR_PAGER=cat "${WORK}/adr" help
 
   [ "${status}" -eq 0 ]
   [[ "${output}" == Usage:\ adr\ * ]]
+}
+
+@test "shell alias adr can invoke adrctl.bash with canonical presentation" {
+  cat >"${WORK}/alias-test.bash" <<EOF
+shopt -s expand_aliases
+alias adr='${ADRCTL}'
+adr help
+EOF
+
+  run env ADR_PAGER=cat bash "${WORK}/alias-test.bash"
+
+  [ "${status}" -eq 0 ]
+  [[ "${output}" == Usage:\ adrctl\ * ]]
 }
 
 @test "ADR_PAGER takes precedence over a failing PAGER" {

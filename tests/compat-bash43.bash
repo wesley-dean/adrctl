@@ -3,7 +3,7 @@
 set -eu
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
-adrctl="${repo_root}/dist/adrctl"
+adrctl="${repo_root}/dist/adrctl.bash"
 work="/tmp/adrctl-bash43-$$"
 
 cleanup() {
@@ -17,8 +17,18 @@ export ADR_PAGER=cat
 
 "${adrctl}" --version >/dev/null
 
+ln -s "${adrctl}" "${work}/adrctl"
+"${work}/adrctl" --version >/dev/null
+
 ln -s "${adrctl}" "${work}/adr"
 "${work}/adr" --version >/dev/null
+
+cat >"${work}/alias-test.bash" <<EOF
+shopt -s expand_aliases
+alias adr='${adrctl}'
+adr --version >/dev/null
+EOF
+bash "${work}/alias-test.bash"
 
 (
   cd "${work}"

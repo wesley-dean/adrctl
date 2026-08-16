@@ -25,8 +25,9 @@ For a public behavior or architectural change, the normal sequence is:
 1. establish or update the documented intent;
 2. implement the smallest coherent change;
 3. add or update observable-behavior tests;
-4. build and validate the generated `dist/adrctl` artifact;
-5. exercise the `adr` symlink path when invocation identity is relevant; and
+4. build and validate the generated `dist/adrctl.bash` artifact;
+5. exercise the installed `adrctl`, `adr` symlink, or shell-alias path when
+   invocation identity is relevant; and
 6. review the complete diff for compatibility and documentation drift.
 
 Tests may be written first when they are the clearest way to reproduce a defect or
@@ -72,7 +73,7 @@ make docs-stage
 make checksums
 ```
 
-The generated artifact is `dist/adrctl`.  It is build output, not maintained
+The generated artifact is `dist/adrctl.bash`.  It is build output, not maintained
 source, and should not be edited directly.
 
 Tests should prefer observable behavior such as command arguments, standard
@@ -83,9 +84,9 @@ configuration, and literal execution of the generated artifact.
 
 Architecture Decision Records are stored under `doc/adr/`.
 
-During initial development, new ADRs remain `Proposed` until the maintainer
-explicitly accepts them.  Do not mark an architectural decision Accepted merely
-because implementation exists.
+Accepted ADRs are historical architectural records.  When a later decision
+changes an accepted contract, add a new ADR that explicitly supersedes the
+relevant portion rather than silently rewriting the earlier rationale.
 
 If implementation exposes a conflict with an ADR or the behavioral
 specification, surface and resolve that conflict explicitly.  Do not let source

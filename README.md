@@ -6,7 +6,7 @@ Records (ADRs).  It is a deliberate successor to
 workflows where practical while improving configuration safety, failure
 preflight, testing, documentation, and release discipline.
 
-The canonical executable is `adrctl`.  The same generated artifact is designed to
+The canonical command is `adrctl`.  The same generated artifact is designed to
 work through an `adr` symbolic link for command-name compatibility with existing
 `adr-tools` habits and automation.
 
@@ -39,7 +39,7 @@ The maintained implementation is modular Bash source under `lib/` and `src/`.
 Make assembles the exact consumer artifact:
 
 ```text
-dist/adrctl
+dist/adrctl.bash
 ```
 
 Build it with:
@@ -52,21 +52,30 @@ The build acquires `mktext` v0.0.6 when necessary and verifies its published
 SHA-256 digest before embedding it unchanged.
 
 The generated artifact is build output rather than maintained source.  Do not
-edit `dist/adrctl` directly.
+edit `dist/adrctl.bash` directly.
 
 ## Installation
 
-A built or released `adrctl` file can be placed anywhere on `PATH`.
-
-To retain the historical `adr` command name, create a symbolic link to the same
-artifact, for example:
+The built or released file is named `adrctl.bash`.  Install those bytes under the
+canonical command name `adrctl`, for example:
 
 ```bash
-ln -s adrctl adr
+install -m 0755 dist/adrctl.bash ~/.local/bin/adrctl
 ```
 
-`adrctl` remains the canonical product and release identity.  The `adr` name is a
-supported invocation alias rather than a separate compatibility executable.
+To retain the historical `adr` command name, create a symbolic link to that same
+installed command:
+
+```bash
+ln -s adrctl ~/.local/bin/adr
+```
+
+Direct execution of `dist/adrctl.bash` is also supported and presents the
+canonical `adrctl` command identity in help and diagnostics.
+
+`adrctl` remains the canonical product and command identity.  The `adrctl.bash`
+name identifies the generated distribution file, while `adr` is a supported
+compatibility invocation alias rather than a separate executable implementation.
 
 ## Commands
 
@@ -316,7 +325,8 @@ The initial architecture and compatibility analysis is also retained under
 
 ## Release Model
 
-Releases use Semantic Versioning and publish one canonical `adrctl` artifact.
+Releases use Semantic Versioning and publish one canonical `adrctl.bash`
+distribution artifact.  The canonical installed command remains `adrctl`.
 Release validation builds and tests the exact artifact, generates a SHA-256
 checksum, and produces GitHub provenance attestation when supported by the
 release platform.

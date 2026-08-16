@@ -4,7 +4,7 @@ SHELL := /bin/bash
 .SHELLFLAGS := -eu -o pipefail -c
 
 DIST_DIR := dist
-DIST_SCRIPT := $(DIST_DIR)/adrctl
+DIST_SCRIPT := $(DIST_DIR)/adrctl.bash
 DIST_CHECKSUM := $(DIST_SCRIPT).sha256
 
 LIB_FILES := \
