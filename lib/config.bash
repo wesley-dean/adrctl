@@ -52,35 +52,35 @@ __adrctl_config_key_is_project_scoped() {
 ## @retval 1 The line is blank or a comment.
 ## @retval 2 The line is malformed.
 __adrctl_config_parse_assignment_line() {
-  local line
-  local key
-  local value
+  local parsed_line
+  local parsed_key
+  local parsed_value
 
-  line="$(__adrctl_trim "$1")"
+  parsed_line="$(__adrctl_trim "$1")"
 
-  if [[ -z ${line} || ${line} == \#* ]]; then
+  if [[ -z ${parsed_line} || ${parsed_line} == \#* ]]; then
     return 1
   fi
 
-  if [[ ${line} == export[[:space:]]* ]]; then
-    line="${line#export}"
-    line="$(__adrctl_trim "${line}")"
+  if [[ ${parsed_line} == export[[:space:]]* ]]; then
+    parsed_line="${parsed_line#export}"
+    parsed_line="$(__adrctl_trim "${parsed_line}")"
   fi
 
-  if [[ ${line} != *=* ]]; then
+  if [[ ${parsed_line} != *=* ]]; then
     return 2
   fi
 
-  key="$(__adrctl_trim "${line%%=*}")"
-  value="$(__adrctl_trim "${line#*=}")"
-  value="$(__adrctl_unquote_simple "${value}")"
+  parsed_key="$(__adrctl_trim "${parsed_line%%=*}")"
+  parsed_value="$(__adrctl_trim "${parsed_line#*=}")"
+  parsed_value="$(__adrctl_unquote_simple "${parsed_value}")"
 
-  if [[ ! ${key} =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]]; then
+  if [[ ! ${parsed_key} =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]]; then
     return 2
   fi
 
-  printf -v "$2" '%s' "${key}"
-  printf -v "$3" '%s' "${value}"
+  printf -v "$2" '%s' "${parsed_key}"
+  printf -v "$3" '%s' "${parsed_value}"
 }
 
 ## @fn __adrctl_config_file_has_marker()
