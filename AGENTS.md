@@ -1,0 +1,409 @@
+# AGENTS.md
+
+This file provides guidance for AI coding agents working in this repository.
+
+Use this file together with `README.md`, the Architecture Decision Records under
+`doc/adr/`, and `doc/adrctl-spec.md`.
+
+The README is the human-facing project overview.  The ADRs are the canonical
+record of architectural intent.  The specification is the normative public
+behavioral contract.  This file is the agent-facing operational map.
+
+## Project Overview
+
+`adrctl` is a deliberate Bash rebuild and successor to
+`npryce/adr-tools`.
+
+The project aims to preserve established `adr-tools` commands and successful
+workflows where practical while improving configuration safety, filesystem
+preflight, build/release discipline, documentation, test coverage, and
+maintainability.
+
+The canonical product and release executable is `adrctl`.  The same generated
+artifact must also work when a user or packager creates an `adr` symbolic link to
+it.
+
+The project is licensed under CC0 1.0 Universal.
+
+## Read the ADRs and Specification First
+
+Before making a significant change, review the relevant ADRs under `doc/adr/` and
+the affected sections of `doc/adrctl-spec.md`.
+
+Do not infer architecture from implementation when an ADR or specification
+already defines the contract.
+
+If implementation exposes a contradiction in the documented architecture, stop
+treating the implementation as authoritative.  Surface the conflict and update
+the ADR/specification or change the implementation deliberately.  Do not allow
+silent architectural drift.
+
+New ADRs created during initial development remain `Proposed` until the maintainer
+explicitly accepts them.
+
+## Foundational Architecture
+
+Preserve these boundaries unless a later ADR intentionally changes them:
+
+- Bash 4.3+ is the minimum runtime.
+- Maintained source is modular and assembled into one generated executable.
+- The canonical generated artifact is `dist/adrctl`.
+- The final artifact has one effective product entrypoint owned by `adrctl`.
+- Invocation through an `adr` symlink is a supported compatibility path.
+- Supported subcommands are built into the repository and generated artifact.
+- External `adr-*` or `adrctl-*` plugin discovery is not supported initially.
+- Project configuration is data and is never sourced or evaluated.
+- `mktext` performs textual substitution only; `adrctl` owns ADR-specific value
+  acquisition and transformation.
+- `mktext` v0.0.6 is the pinned build dependency until an intentional dependency
+  update changes that decision.
+- The embedded renderer adds no runtime network dependency.
+- Multi-file mutations preflight the complete intended change before writing.
+- Existing files use atomic per-file replacement where practical.
+- Cross-file transactionality is not promised.
+- Git may supply project context but does not own ADR mutation state.
+- `generate graph` emits Graphviz DOT and does not invoke Graphviz automatically.
+- Ambiguous ADR references fail rather than selecting the first incidental match.
+
+## Compatibility and Provenance
+
+The canonical compatibility baseline is:
+
+```text
+Repository: npryce/adr-tools
+Release:    3.0.0
+Commit:     b47d3837d452ca6d2509d2524c7a08c701e84367
+```
+
+Upstream source, documentation, and tests may be inspected to establish observable
+behavior and compatibility cases.
+
+Do not copy, translate, mechanically transform, or adapt GPL-covered upstream
+implementation code into `adrctl` production source.
+
+Independently author `adrctl` source against the ADRs, specification, and observed
+behavioral corpus.
+
+When upstream implementation inspection is required to understand behavior,
+document the observable contract rather than reproducing implementation
+expression.
+
+Default/template explanatory prose should be independently authored.  Preserve
+required structure and observable semantics without copying predecessor prose
+merely for textual similarity.
+
+Classify predecessor behavior as:
+
+```text
+Compatible
+Intentional deviation
+New adrctl behavior
+```
+
+Intentional deviations require rationale, specification coverage, and regression
+tests.  User-visible deviations from successful predecessor workflows should have
+migration guidance.
+
+## Clarify Only Material Ambiguity
+
+Use repository evidence before asking the maintainer to reconstruct facts that can
+be discovered from source, documentation, tests, ADRs, Git history, or the
+compatibility baseline.
+
+Ask a question when two reasonable answers would produce meaningfully different
+public behavior, compatibility, security, persistence, release behavior,
+licensing, or architectural boundaries.
+
+For low-risk, reversible implementation choices that fit the established
+architecture, choose the conventional answer and continue.
+
+Do not invent rationale when the repository does not establish it.
+
+## Technology Stack
+
+Runtime:
+
+- Bash 4.3+
+- Bash builtins and language features
+- bounded ordinary Unix utilities when clearly justified
+- Git only where the specification permits it
+
+Build and development:
+
+- Make
+- Bats
+- ShellCheck
+- shfmt
+- Doxygen-compatible Bash documentation
+- GitHub Actions
+- SHA-256 release checksums
+- GitHub artifact provenance attestation
+
+Build dependency:
+
+- `mktext` v0.0.6
+- release asset: `mktext.bash`
+- expected SHA-256:
+  `03d8b99188251ffeca394cd5737e8876813190d14d671109f2fbe236f4b13c01`
+
+## Source and Build Boundaries
+
+Treat maintained source under `src/` and `lib/` as the implementation source of
+truth once those directories exist.
+
+Do not edit `dist/adrctl` as though it were maintained source.
+
+The Makefile must enumerate build inputs explicitly.  Do not replace explicit
+source order with implicit plugin/module discovery.
+
+The build assembles one self-contained executable, injects immutable version/build
+metadata, and embeds the verified `mktext` dependency unchanged.
+
+Do not strip, rewrite, patch, or textually transform the pinned `mktext` artifact
+inside the `adrctl` build.  If the dependency cannot be embedded unchanged, treat
+that as a dependency/architecture problem and resolve it explicitly.
+
+Release versions come from the release workflow and are passed into Make.  Make
+does not independently invent a release version.
+
+Build dates use source-revision timestamps rather than wall-clock assembly time.
+
+## Coding Guidelines
+
+Prefer small, readable Bash functions with one clear responsibility.
+
+Avoid `eval`.
+
+Do not source `.env`, `.adr-dir`, templates, ADR documents, or replacement values
+as shell code.
+
+Quote expansions deliberately.
+
+Treat template text, configuration values, titles, relationship text, and ADR
+contents as data.
+
+Prefer Bash builtins when they implement the behavior clearly and safely on Bash
+4.3.  Use ordinary Unix commands where they make the implementation more obvious
+or compatible rather than recreating them poorly in shell.
+
+Keep parsing bounded to the syntax the specification owns.  Do not grow a general
+Markdown parser, shell parser, or template engine opportunistically.
+
+Separate interpretation from mutation.  Resolve configuration, references,
+templates, target paths, and complete intended outputs before the first write.
+
+Use same-directory temporary files and atomic rename for existing-file replacement
+where practical.
+
+Never overwrite a newly appeared destination merely because number allocation
+raced with another process.
+
+## Configuration Rules
+
+Project-root discovery and configuration are separate phases.
+
+`ADRCTL_PROJECT_ROOT` is a CLI/process-environment concept.  It is not valid
+inside project `.env` configuration.
+
+A shared `.env` may contain unrelated keys.  Ignore non-`ADRCTL_` keys.  Reject
+unknown `ADRCTL_` project keys.
+
+Configuration must be parsed as data with the exact grammar defined by the
+specification.  Do not add shell expansion, command substitution, or escape
+processing as convenience features.
+
+Relative project paths resolve against `PROJECT_ROOT`, not the caller's incidental
+nested cwd.
+
+Preserve `.adr-dir` compatibility until a later accepted decision changes it.
+
+## Rendering Rules
+
+`adrctl` owns context values such as:
+
+```text
+NUMBER
+NUMBER4
+TITLE
+TITLE_SLUG
+STATUS
+DATE
+PROJECT_ROOT
+ADR_DIR
+```
+
+Do not move slugification, date generation, number padding, filesystem discovery,
+or ADR semantics into `mktext`.
+
+Use the pinned public `mktext` render API.
+
+Delimiter selection belongs to `adrctl`:
+
+1. explicit command-line pair;
+2. process-environment pair;
+3. project-configuration pair;
+4. automatic detection of a recognized braced context token;
+5. otherwise empty delimiters for legacy bare-token mode.
+
+Do not implement mixed implicit rendering or a second compatibility renderer.
+
+## Scope Discipline
+
+Produce the smallest coherent change that satisfies the documented behavior.
+
+Do not perform unrelated refactoring, formatting, renaming, dependency upgrades,
+feature additions, or documentation rewrites in a focused patch.
+
+A coherent engineering change may include the documentation, source, tests, and
+build updates necessary to keep one behavior complete.  That is not scope creep.
+
+If additional improvement opportunities are discovered, record or report them
+separately unless they block correctness or safety of the current work.
+
+Documentation-only requests must preserve executable behavior exactly.
+
+## Documentation Standards
+
+Follow ADR-017 and ADR-018.
+
+Hand-maintained Bash uses Doxygen-compatible documentation comments.
+
+Document function purpose, parameters, statuses, streams, side effects, and
+important invariants where applicable.
+
+Comments should explain intent and constraints rather than paraphrasing syntax.
+
+Documentation roles are distinct:
+
+- README: human-facing use and orientation;
+- AGENTS: contributor operating guidance;
+- ADRs: why durable architectural choices were made;
+- `doc/adrctl-spec.md`: current public behavior;
+- source comments: implementation contracts;
+- `doc/reference`: generated source-reference documentation.
+
+Do not use tests or source comments as substitutes for updating the normative
+specification when public behavior changes.
+
+## Development Workflow
+
+The project follows documentation-driven, test-second development.
+
+For a behavioral or architectural change:
+
+1. establish or update documented intent;
+2. implement the smallest coherent change;
+3. add or update observable-behavior tests;
+4. build and test the literal generated artifact when consumer behavior can be
+   affected;
+5. test through the `adr` symlink when invocation identity can be affected; and
+6. review the complete diff for architecture, compatibility, and documentation
+   drift.
+
+Tests may be written first to reproduce a bug or characterize unknown behavior.
+Before completion, the intended resulting behavior must exist independently in
+the documentation.
+
+## Testing
+
+Use Bats for the primary behavior suite unless a small shell harness is more
+appropriate for a specific minimum-Bash or build-boundary test.
+
+Prefer observable behavior:
+
+- command arguments;
+- stdout and stderr;
+- exit status;
+- generated paths;
+- file contents;
+- filesystem mutations;
+- editor/pager invocation boundaries;
+- generated reports;
+- configuration precedence;
+- dependency verification; and
+- literal execution of `dist/adrctl`.
+
+Do not couple tests to private helper names merely because they are convenient to
+call.
+
+The compatibility suite must cover the canonical `adr-tools` 3.0.0 surface and
+all documented intentional deviations.
+
+Every behavior-affecting fix should add or update a regression test that would
+have caught the defect.
+
+The generated artifact must be tested directly.  Valid source modules do not prove
+that concatenation order, embedded dependency behavior, metadata injection,
+permissions, or the `adr` symlink path are correct.
+
+Minimum-runtime testing must include Bash 4.3.
+
+## Validation
+
+When relevant, use the repository's Make targets rather than reproducing their
+logic ad hoc.
+
+Validation should include the applicable subset of:
+
+- Bash syntax validation;
+- static analysis;
+- formatting checks;
+- behavior tests;
+- compatibility tests;
+- minimum-Bash tests;
+- literal generated-artifact tests;
+- `adr` symlink tests;
+- generated documentation;
+- checksum validation; and
+- complete diff review.
+
+Report only validation actually performed.  Do not invent successful tool output.
+
+## Release Discipline
+
+The release artifact is `dist/adrctl`.
+
+Release acceptance concerns the exact artifact bytes that will be published.
+
+The release workflow validates source and behavior, verifies `mktext`, builds the
+artifact with the chosen SemVer, validates the artifact, generates SHA-256,
+produces provenance attestation when supported, and publishes those exact bytes.
+
+Do not create a separately maintained `adr` executable.  Compatibility uses a
+symlink to `adrctl`.
+
+## Common Failure Modes
+
+Avoid:
+
+- copying `adr-tools` implementation code into the rewrite;
+- treating GPL-covered implementation expression as a shortcut to compatibility;
+- editing generated `dist/adrctl` directly;
+- embedding an unverified or moving `mktext` dependency;
+- patching `mktext` during `adrctl` assembly;
+- allowing embedded `mktext` to claim the `adrctl` process entrypoint;
+- treating every `.env` as a project marker;
+- allowing `.env` to redirect its own project root;
+- evaluating configuration or templates as shell code;
+- silently ignoring unknown `ADRCTL_` project keys;
+- choosing the first ambiguous ADR reference;
+- mutating one file before discovering that another required target is invalid;
+- claiming cross-file transactionality that the filesystem does not provide;
+- overwriting a file after a concurrent number-allocation collision;
+- writing diagnostics into script-facing stdout;
+- exposing private `mktext` statuses as the `adrctl` CLI contract;
+- automatically staging or committing Git changes;
+- requiring Graphviz merely to emit DOT;
+- adding external plugin discovery without a new architectural decision;
+- testing only source modules and assuming the assembled executable works;
+- inventing design rationale; and
+- silently expanding scope.
+
+## Final Principle
+
+`adrctl` should make established ADR workflows easier to trust.
+
+Preserve useful compatibility, improve unsafe failure boundaries deliberately,
+keep the generated product inspectable, and leave every change understandable to
+the next contributor without requiring access to the conversation that produced
+it.
