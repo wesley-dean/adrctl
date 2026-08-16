@@ -2,22 +2,25 @@
 
 ## Status
 
-Working architecture note.  The `mktext` capabilities required by `adrctl` are
-now merged, documented, tested, and published in `mktext` release `v0.0.6`.
-This note records the verified dependency contract that informs `adrctl` ADR-001
-and the later build/dependency ADR.
+Working architecture note.  The `mktext` capabilities required by `adrctl` were
+first completed in `mktext` release `v0.0.6`.  The current pinned dependency is
+`v0.0.7`, which preserves that rendering and embedding contract while stripping
+full-line source comments from the `mktext.bash` distribution artifact in the
+`mktext` build itself.
 
-The pinned dependency candidate is:
+The current pinned dependency is:
 
 ```text
-Release:      v0.0.6
+Release:      v0.0.7
 Artifact:     mktext.bash
-SHA-256:      03d8b99188251ffeca394cd5737e8876813190d14d671109f2fbe236f4b13c01
+SHA-256:      213cee4663512954f486c8a6ff00ddd36a9b4c48ceb3e9b71d9ec70a36c1e0dd
 ```
 
-Release `v0.0.6` includes both configurable render delimiters and the
+Release `v0.0.7` retains the configurable render delimiters and
 concatenation-safe direct-execution guard required for embedding `mktext` in the
-generated `adrctl.bash` distribution artifact.
+generated `adrctl.bash` distribution artifact.  Its packaging change is owned by
+`mktext`; `adrctl` continues to verify and embed the published dependency bytes
+unchanged.
 
 ## Context
 
@@ -46,11 +49,11 @@ body-template renderer in order to preserve existing project templates.
 options.  Its normal defaults remain `{` and `}`.  Supplying empty strings for
 both options selects bare-key mode.
 
-`mktext` also now constrains its direct-execution entrypoint to supported
-`mktext` invocation basenames.  When the same source is concatenated into
-`adrctl.bash`, installed or linked as `adrctl`, or reached through an `adr`
-symlink, the embedded `mktext` entrypoint remains inert and execution can
-continue to the `adrctl` entrypoint.
+`mktext` also constrains its direct-execution entrypoint to supported `mktext`
+invocation basenames.  When the same source is concatenated into `adrctl.bash`,
+installed or linked as `adrctl`, or reached through an `adr` symlink, the embedded
+`mktext` entrypoint remains inert and execution can continue to the `adrctl`
+entrypoint.
 
 ## Verified mktext contract
 
@@ -146,6 +149,10 @@ The build should verify the downloaded dependency against the pinned SHA-256
 before incorporating it.  A checksum mismatch SHALL fail the build before the
 dependency is used.
 
+`adrctl` SHALL NOT strip, rewrite, or otherwise post-process `mktext.bash` during
+assembly.  Distribution cleanup inside `mktext.bash`, including comment stripping,
+is the responsibility of the `mktext` build and release process.
+
 Runtime network access SHALL NOT be required for template rendering.  Dependency
 acquisition is a build-time concern.
 
@@ -173,11 +180,15 @@ as compatible, an intentional deviation, or a defect before release.
 `mktext` `v0.0.6` is the first published release that satisfies the complete
 currently known `adrctl` rendering and embedding requirements.
 
-The production build should pin the `v0.0.6` `mktext.bash` release artifact and
-its SHA-256 digest rather than consuming a moving `main` branch.  A later upgrade
-should be an intentional dependency change that updates the pinned version and
-digest together and reruns the `adrctl` compatibility and generated-artifact test
-suite.
+`mktext` `v0.0.7` changes only the dependency's distribution packaging: its build
+strips full-line source comments before publishing `mktext.bash`.  The public
+renderer/runtime source did not change between the two releases.  `adrctl`
+therefore pins `v0.0.7` and its SHA-256 digest while preserving the same dependency
+contract established by ADR-001 and ADR-003.
+
+A later upgrade should remain an intentional dependency change that updates the
+pinned version and digest together and reruns the `adrctl` compatibility and
+generated-artifact test suite.
 
 ## Architectural effect
 
@@ -186,6 +197,6 @@ templates?" and "Can the executable mktext artifact be safely embedded by
 concatenation?" are resolved.
 
 The architecture uses one renderer, `mktext`, with `adrctl` choosing the
-effective delimiter pair according to ADR-001.  The `v0.0.6` dependency can be
-verified and concatenated into `dist/adrctl.bash` while leaving process startup
-under `adrctl` ownership.
+effective delimiter pair according to ADR-001.  The current `v0.0.7` dependency
+can be verified and concatenated into `dist/adrctl.bash` unchanged while leaving
+process startup under `adrctl` ownership.
