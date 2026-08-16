@@ -30,6 +30,11 @@ reads or writes into an unintended location.
 At the same time, requiring users to abandon `.adr-dir` or always invoke
 `adrctl` from the repository root would create unnecessary migration work.
 
+Initialization is a special case because it creates project context rather than
+consuming an already-established one.  Preserving predecessor behavior means
+`init` should use the directory the user intentionally initializes rather than
+silently climbing to a Git ancestor merely because no ADR marker exists yet.
+
 ## Decision Drivers
 
 - Preserve nested-directory invocation from `adr-tools`.
@@ -39,12 +44,14 @@ At the same time, requiring users to abandon `.adr-dir` or always invoke
 - Keep root selection deterministic, inspectable, and overrideable.
 - Resolve project-relative paths consistently from one root.
 - Avoid sourcing configuration as shell code.
+- Preserve intuitive and predecessor-compatible initialization behavior.
 
 ## Decision
 
-`adrctl` SHALL determine `PROJECT_ROOT` according to this precedence:
+For commands that operate on an existing project, `adrctl` SHALL determine
+`PROJECT_ROOT` according to this precedence:
 
-1. an explicit command-line project-root option, when the command exposes one;
+1. an explicit command-line project-root option;
 2. `ADRCTL_PROJECT_ROOT` from the process environment;
 3. the nearest recognized project marker found while walking upward from the
    current working directory;
@@ -55,11 +62,15 @@ A recognized project marker is any of the following:
 
 - a `.adr-dir` file;
 - an existing `doc/adr` directory;
-- a `.env` file containing at least one syntactically recognizable `ADRCTL_`
-  directive.
+- a `.env` file containing at least one syntactically recognizable supported
+  project-scoped `ADRCTL_` directive.
 
-An arbitrary `.env` that contains no `ADRCTL_` directive SHALL NOT establish
-`adrctl` project context.
+`ADRCTL_PROJECT_ROOT` is not project-scoped configuration and SHALL NOT, by
+itself, cause a `.env` file to become an `adrctl` project marker.  It is a
+command/process input as defined by ADR-009.
+
+An arbitrary `.env` that contains no supported project-scoped `ADRCTL_` directive
+SHALL NOT establish `adrctl` project context.
 
 When multiple recognized markers exist at different ancestor levels, the nearest
 ancestor containing any recognized marker SHALL win.  Marker type SHALL NOT
@@ -73,6 +84,7 @@ Configuration precedence for individual settings SHALL be:
 
 ```text
 built-in default
+    -> compatible legacy metadata where applicable
     -> project configuration
     -> process environment
     -> command-line option
@@ -94,8 +106,14 @@ Configured project paths generally SHALL follow the same rule:
 - a path beginning with `/` is absolute;
 - any other configured path is resolved relative to `PROJECT_ROOT`.
 
-The normative specification SHALL define command-specific exceptions if a future
-option intentionally uses a different path base.
+The normative specification SHALL define command-specific exceptions when a
+command intentionally establishes a new project or uses a different path base.
+
+For `init`, when neither a command-line project root nor
+`ADRCTL_PROJECT_ROOT` is supplied, `PROJECT_ROOT` SHALL be the current working
+directory.  `init` SHALL NOT use Git-root fallback before it has established the
+new ADR project.  This preserves the predecessor expectation that `adr init`
+initializes the directory in which it is invoked.
 
 `adrctl` SHALL NOT require Git merely to operate.  Git-root discovery is a
 fallback when no recognized `adrctl` marker exists; it does not make Git the
@@ -109,6 +127,12 @@ This was rejected because `.env` is a common application configuration filename
 with no inherent relationship to ADR tooling.  An unrelated nearer `.env` could
 silently redirect project discovery.
 
+### Let ADRCTL_PROJECT_ROOT inside .env redirect discovery
+
+This was rejected because the root must already be known before `adrctl` can
+choose which `.env` to read.  Root overrides therefore remain command/process
+inputs and do not create recursive discovery semantics.
+
 ### Use only a new dedicated adrctl configuration filename
 
 A dedicated filename would be unambiguous, but it would add another project file
@@ -121,6 +145,12 @@ This would be predictable in Git repositories, but it could change established
 `.adr-dir`/`doc/adr` behavior in nested or multi-project repositories.  Explicit
 ADR markers are stronger evidence of intended ADR context than repository
 membership alone.
+
+### Let init use Git-root fallback
+
+This would make initialization inside a nested Git directory unexpectedly modify
+the repository root.  Initialization creates ADR context and therefore defaults
+to the caller's current directory unless explicitly redirected.
 
 ### Require invocation from project root
 
@@ -144,17 +174,21 @@ files hijacking discovery.
 The implementation needs one explicit upward-discovery routine and a strict
 configuration parser.
 
+Initialization retains current-directory semantics unless deliberately
+redirected.
+
 Git remains useful as a fallback but is not a mandatory runtime dependency for
 basic ADR operations.
 
 Tests must cover nested directories, competing ancestor markers, unrelated
 `.env` files, qualifying `.env` files, explicit root overrides, `.adr-dir`, Git
-fallback, and cwd fallback.
+fallback, cwd fallback, and initialization inside nested Git directories.
 
 ## Open Questions and Follow-Ups
 
-The normative specification must enumerate the supported `ADRCTL_` keys and the
-exact command-line spelling of an explicit project-root option.
+The normative specification must enumerate the supported `ADRCTL_` keys and use
+`--project-root PATH` as the explicit project-root option unless a later ADR
+changes that spelling.
 
 Migration guidance may later recommend `.env` configuration while preserving
 `.adr-dir` compatibility; no automated migration command is required by this
@@ -165,5 +199,6 @@ ADR.
 - Related to: ADR-000
 - Related to: ADR-001
 - Related to: ADR-002
+- Related to: ADR-009
 - Adapted from Bootstrap ADR-005, ADR-023, ADR-028, and ADR-040.
 - Compatibility lineage: `npryce/adr-tools` upward `.adr-dir`/`doc/adr` discovery.
