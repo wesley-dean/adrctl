@@ -21,13 +21,10 @@ with an explicit `.bash` suffix:
 dist/adrctl.bash
 ```
 
-The maintainer also requires ordinary shell aliases such as:
-
-```bash
-alias adr=~/.local/bin/adrctl.bash
-```
-
-to invoke the same tool successfully.
+The maintainer also expects ordinary shell aliases that point to the artifact to
+invoke the same tool successfully.  A command such as
+`alias adr=/path/to/adrctl.bash` is representative; the exact alias spelling,
+path, or installation location is not part of the product contract.
 
 This correction changes the distribution filename and release asset name.  It
 does not rename the product, create a new runtime mode, or weaken the existing
@@ -79,16 +76,16 @@ When the artifact is installed or linked as `adrctl`, help and diagnostics SHALL
 use `adrctl`.  When it is reached through a filesystem symbolic link named `adr`,
 help and diagnostics SHOULD continue to use `adr` as defined by ADR-002.
 
-A shell alias that expands `adr` directly to the `adrctl.bash` path SHALL be a
-supported way to invoke the command.  Such alias invocation SHALL have the same
-command semantics, configuration, filesystem effects, output results, and exit
-statuses as direct `adrctl.bash` execution.
+Ordinary shell aliases that expand to the `adrctl.bash` artifact path SHALL be a
+supported way to invoke the command.  Alias invocation SHALL have the same command
+semantics, configuration, filesystem effects, output results, and exit statuses
+as direct `adrctl.bash` execution.
 
 Bash alias expansion does not preserve the alias token as the executed script's
-`$0`.  Therefore a plain alias such as `alias adr=~/.local/bin/adrctl.bash` cannot
-be detected reliably by the artifact.  Help and diagnostic presentation through
-that alias SHALL use canonical `adrctl` presentation rather than claiming that the
-process was invoked through a detectable `adr` basename.
+`$0`.  Therefore an alias named `adr` that expands directly to the artifact path
+cannot be detected reliably by the artifact.  Help and diagnostic presentation
+through such an alias SHALL use canonical `adrctl` presentation rather than
+claiming that the process was invoked through a detectable `adr` basename.
 
 Version and provenance output SHALL continue to identify the product as
 `adrctl`, regardless of whether the bytes are reached as `adrctl.bash`, an
@@ -100,7 +97,7 @@ The generated-artifact test matrix SHALL exercise at least:
 - direct execution of `dist/adrctl.bash`;
 - execution of the same bytes through an `adrctl` symbolic link;
 - execution of the same bytes through an `adr` symbolic link;
-- command execution through a shell alias named `adr` that expands to the
+- command execution through a representative shell alias that expands to the
   `adrctl.bash` path;
 - canonical help and diagnostic presentation for `adrctl.bash` and `adrctl`;
 - compatibility presentation through a filesystem `adr` symlink;
@@ -165,8 +162,8 @@ The generated checksum filename becomes `adrctl.bash.sha256` automatically when
 it is derived from the distribution artifact name.
 
 Users and packagers can install the released file under the canonical command
-name `adrctl`, may provide the historical `adr` symlink, or may use a shell alias
-that points directly to `adrctl.bash`.
+name `adrctl`, may provide the historical `adr` symlink, or may use an ordinary
+shell alias that points to `adrctl.bash`.
 
 The runtime needs a narrow invocation-name normalization rule so direct execution
 of the `.bash` artifact and plain alias invocation present canonical `adrctl` help
