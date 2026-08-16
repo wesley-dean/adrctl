@@ -99,11 +99,11 @@ Modern `mktext` templates commonly use braced macros such as:
 {DATE}
 ```
 
-The initial grammar mismatch has been resolved by changes released in `mktext`
-v0.0.6.  `mktext render` accepts explicit starting and ending delimiters; two
-empty delimiters select bare-key mode with whole-token matching.  This allows one
-renderer to support both legacy bare tokens and modern braced tokens without an
-`adrctl`-owned compatibility renderer.
+The initial grammar mismatch was resolved in `mktext` v0.0.6.  `mktext render`
+accepts explicit starting and ending delimiters; two empty delimiters select
+bare-key mode with whole-token matching.  This allows one renderer to support
+both legacy bare tokens and modern braced tokens without an `adrctl`-owned
+compatibility renderer.
 
 ADR-001 defines the `adrctl` policy:
 
@@ -117,9 +117,13 @@ ADR-001 defines the `adrctl` policy:
 Exactly one delimiter pair is selected for each render.  Mixed implicit
 rendering and two-pass substitution are not supported.
 
-ADR-003 pins `mktext` v0.0.6 as a verified build dependency and incorporates its
-release artifact unchanged into the generated `adrctl.bash` distribution artifact.
-The v0.0.6 execution guard remains inert when the same bytes are executed as
+ADR-003 established the policy of pinning, verifying, and embedding the published
+`mktext.bash` release artifact unchanged.  The first dependency satisfying the
+complete rendering and embedding requirements was v0.0.6.  The current build pins
+v0.0.7, which preserves the same public renderer/runtime behavior while moving
+full-line comment stripping into the `mktext` distribution build itself.
+
+The v0.0.7 execution guard remains inert when the same bytes are executed inside
 `adrctl.bash`, installed or linked as `adrctl`, or reached through an `adr`
 symlink, so the final product retains one effective process entrypoint.
 
@@ -185,7 +189,8 @@ resolved:
   `adrctl.bash`, and the same bytes support an `adr` symlink or ordinary shell
   alias invocation under ADR-002 and ADR-019.
 - **Template compatibility:** one `mktext` renderer with automatic delimiter
-  selection and explicit overrides is defined by ADR-001 and ADR-003.
+  selection and explicit overrides is defined by ADR-001 and ADR-003.  The
+  current dependency pin is `mktext` v0.0.7.
 - **Project discovery:** explicit root overrides win, then the nearest recognized
   `.adr-dir`, `doc/adr`, or qualifying `.env` marker, then Git root, then cwd,
   under ADR-005.
