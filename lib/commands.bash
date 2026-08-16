@@ -8,17 +8,17 @@
 ## @retval 0 The final path was created with complete content.
 ## @retval 1 The final path already existed or publishing failed.
 __adrctl_publish_new_file() {
-  local prepared
-  local target
+  local __adrctl_local_prepared
+  local __adrctl_local_target
 
-  prepared="$1"
-  target="$2"
+  __adrctl_local_prepared="$1"
+  __adrctl_local_target="$2"
 
-  if ! ln "${prepared}" "${target}" 2>/dev/null; then
+  if ! ln "${__adrctl_local_prepared}" "${__adrctl_local_target}" 2>/dev/null; then
     return 1
   fi
 
-  rm -f "${prepared}"
+  rm -f "${__adrctl_local_prepared}"
 }
 
 ## @fn __adrctl_append_encoded_line()
@@ -39,13 +39,13 @@ __adrctl_append_encoded_line() {
 ## @param $1 Encoded string.
 ## @param $2 Output array variable name.
 __adrctl_decode_lines() {
-  local -n output_ref="$2"
-  local value
+  local -n __adrctl_local_output_ref="$2"
+  local __adrctl_local_value
 
-  output_ref=()
-  value="$1"
-  [[ -n ${value} ]] || return 0
-  IFS=$'\034' read -r -a output_ref <<<"${value}"
+  __adrctl_local_output_ref=()
+  __adrctl_local_value="$1"
+  [[ -n ${__adrctl_local_value} ]] || return 0
+  IFS=$'\034' read -r -a __adrctl_local_output_ref <<<"${__adrctl_local_value}"
 }
 
 ## @fn __adrctl_add_unique_path()
@@ -53,13 +53,13 @@ __adrctl_decode_lines() {
 ## @param $1 Array variable name.
 ## @param $2 Path.
 __adrctl_add_unique_path() {
-  local -n paths_ref="$1"
-  local existing
+  local -n __adrctl_local_paths_ref="$1"
+  local __adrctl_local_existing
 
-  for existing in "${paths_ref[@]}"; do
-    [[ ${existing} == "$2" ]] && return 0
+  for __adrctl_local_existing in "${__adrctl_local_paths_ref[@]}"; do
+    [[ ${__adrctl_local_existing} == "$2" ]] && return 0
   done
-  paths_ref+=("$2")
+  __adrctl_local_paths_ref+=("$2")
 }
 
 ## @fn __adrctl_select_filename_pattern()
@@ -81,20 +81,20 @@ __adrctl_select_filename_pattern() {
 ## @retval 0 No editor was configured or the editor succeeded.
 ## @retval 1 The configured editor failed.
 __adrctl_invoke_editor() {
-  local command_text
-  local -a command_parts
+  local __adrctl_local_command_text
+  local -a __adrctl_local_command_parts
 
   if [[ -v VISUAL && -n ${VISUAL} ]]; then
-    command_text="${VISUAL}"
+    __adrctl_local_command_text="${VISUAL}"
   elif [[ -v EDITOR && -n ${EDITOR} ]]; then
-    command_text="${EDITOR}"
+    __adrctl_local_command_text="${EDITOR}"
   else
     return 0
   fi
 
-  read -r -a command_parts <<<"${command_text}"
-  (( ${#command_parts[@]} > 0 )) || return 0
-  "${command_parts[@]}" "$1"
+  read -r -a __adrctl_local_command_parts <<<"${__adrctl_local_command_text}"
+  (( ${#__adrctl_local_command_parts[@]} > 0 )) || return 0
+  "${__adrctl_local_command_parts[@]}" "$1"
 }
 
 ## @fn __adrctl_page_help()
@@ -103,26 +103,26 @@ __adrctl_invoke_editor() {
 ## @retval 0 Pager completed successfully.
 ## @retval 1 Pager invocation failed.
 __adrctl_page_help() {
-  local text
-  local pager_text
-  local -a pager_parts
+  local __adrctl_local_text
+  local __adrctl_local_pager_text
+  local -a __adrctl_local_pager_parts
 
-  text="$1"
+  __adrctl_local_text="$1"
   if [[ -v ADR_PAGER && -n ${ADR_PAGER} ]]; then
-    pager_text="${ADR_PAGER}"
+    __adrctl_local_pager_text="${ADR_PAGER}"
   elif [[ -v PAGER && -n ${PAGER} ]]; then
-    pager_text="${PAGER}"
+    __adrctl_local_pager_text="${PAGER}"
   else
-    pager_text='more'
+    __adrctl_local_pager_text='more'
   fi
 
-  read -r -a pager_parts <<<"${pager_text}"
-  (( ${#pager_parts[@]} > 0 )) || {
-    printf '%s' "${text}"
+  read -r -a __adrctl_local_pager_parts <<<"${__adrctl_local_pager_text}"
+  (( ${#__adrctl_local_pager_parts[@]} > 0 )) || {
+    printf '%s' "${__adrctl_local_text}"
     return $?
   }
 
-  printf '%s' "${text}" | "${pager_parts[@]}"
+  printf '%s' "${__adrctl_local_text}" | "${__adrctl_local_pager_parts[@]}"
 }
 
 ## @fn __adrctl_help_text()
@@ -132,21 +132,21 @@ __adrctl_page_help() {
 ## @retval 0 Help exists.
 ## @retval 2 Requested help subject is unknown.
 __adrctl_help_text() {
-  local output_name
-  local invoked
-  local subject
-  local text
+  local __adrctl_local_output_name
+  local __adrctl_local_invoked
+  local __adrctl_local_subject
+  local __adrctl_local_built_text
 
-  output_name="$1"
+  __adrctl_local_output_name="$1"
   shift
-  invoked="$(__adrctl_invoked_name)"
-  subject="${1-}"
-  text=''
+  __adrctl_local_invoked="$(__adrctl_invoked_name)"
+  __adrctl_local_subject="${1-}"
+  __adrctl_local_built_text=''
 
-  case "${subject}" in
+  case "${__adrctl_local_subject}" in
     '')
-      printf -v text '%s\n' \
-        "Usage: ${invoked} [--project-root PATH] COMMAND [OPTION...]" \
+      printf -v __adrctl_local_built_text '%s\n' \
+        "Usage: ${__adrctl_local_invoked} [--project-root PATH] COMMAND [OPTION...]" \
         '' \
         'Commands:' \
         '  init [DIRECTORY]                       Initialize an ADR repository.' \
@@ -158,19 +158,19 @@ __adrctl_help_text() {
         '  help [COMMAND [SUBCOMMAND...]]         Show help.' \
         '' \
         'Global informational forms:' \
-        "  ${invoked} -h | --help" \
-        "  ${invoked} --version"
+        "  ${__adrctl_local_invoked} -h | --help" \
+        "  ${__adrctl_local_invoked} --version"
       ;;
     init)
-      printf -v text '%s\n' \
-        "Usage: ${invoked} init [DIRECTORY]" \
+      printf -v __adrctl_local_built_text '%s\n' \
+        "Usage: ${__adrctl_local_invoked} init [DIRECTORY]" \
         '' \
         'Initialize the current project with Architecture Decision Records.' \
         'DIRECTORY defaults to doc/adr.  A supplied directory is recorded in .adr-dir.'
       ;;
     new)
-      printf -v text '%s\n' \
-        "Usage: ${invoked} new [-s REFERENCE]... [-l TARGET:LINK:REVERSE-LINK]... [OPTIONS] TITLE..." \
+      printf -v __adrctl_local_built_text '%s\n' \
+        "Usage: ${__adrctl_local_invoked} new [-s REFERENCE]... [-l TARGET:LINK:REVERSE-LINK]... [OPTIONS] TITLE..." \
         '' \
         'Options:' \
         '  -s REFERENCE                    Supersede an existing ADR.' \
@@ -181,26 +181,26 @@ __adrctl_help_text() {
         '  --end-delimiter STRING          Set body-template end delimiter.'
       ;;
     link)
-      printf -v text '%s\n' \
-        "Usage: ${invoked} link SOURCE LINK TARGET REVERSE-LINK" \
+      printf -v __adrctl_local_built_text '%s\n' \
+        "Usage: ${__adrctl_local_invoked} link SOURCE LINK TARGET REVERSE-LINK" \
         '' \
         'Add a relationship from SOURCE to TARGET and the reciprocal relationship.'
       ;;
     list)
-      printf -v text '%s\n' "Usage: ${invoked} list"
+      printf -v __adrctl_local_built_text '%s\n' "Usage: ${__adrctl_local_invoked} list"
       ;;
     generate)
       if [[ ${2-} == toc ]]; then
-        printf -v text '%s\n' \
-          "Usage: ${invoked} generate toc [-i INTRO_FILE] [-o OUTRO_FILE] [-p LINK_PREFIX]"
+        printf -v __adrctl_local_built_text '%s\n' \
+          "Usage: ${__adrctl_local_invoked} generate toc [-i INTRO_FILE] [-o OUTRO_FILE] [-p LINK_PREFIX]"
       elif [[ ${2-} == graph ]]; then
-        printf -v text '%s\n' \
-          "Usage: ${invoked} generate graph [-p LINK_PREFIX] [-e LINK_EXTENSION]"
+        printf -v __adrctl_local_built_text '%s\n' \
+          "Usage: ${__adrctl_local_invoked} generate graph [-p LINK_PREFIX] [-e LINK_EXTENSION]"
       elif [[ -n ${2-} ]]; then
         return "${__adrctl_exit_usage}"
       else
-        printf -v text '%s\n' \
-          "Usage: ${invoked} generate [REPORT [OPTION...]]" \
+        printf -v __adrctl_local_built_text '%s\n' \
+          "Usage: ${__adrctl_local_invoked} generate [REPORT [OPTION...]]" \
           '' \
           'Reports:' \
           '  toc' \
@@ -208,14 +208,15 @@ __adrctl_help_text() {
       fi
       ;;
     upgrade-repository)
-      printf -v text '%s\n' "Usage: ${invoked} upgrade-repository"
+      printf -v __adrctl_local_built_text '%s\n' \
+        "Usage: ${__adrctl_local_invoked} upgrade-repository"
       ;;
     *)
       return "${__adrctl_exit_usage}"
       ;;
   esac
 
-  printf -v "${output_name}" '%s' "${text}"
+  printf -v "${__adrctl_local_output_name}" '%s' "${__adrctl_local_built_text}"
 }
 
 ## @fn __adrctl_command_help()
@@ -225,14 +226,14 @@ __adrctl_help_text() {
 ## @retval 1 Pager failed.
 ## @retval 2 Help subject is unknown.
 __adrctl_command_help() {
-  local text
+  local __adrctl_local_help_text
 
-  if ! __adrctl_help_text text "$@"; then
+  if ! __adrctl_help_text __adrctl_local_help_text "$@"; then
     __adrctl_fail_usage "unknown help subject: $*"
     return $?
   fi
 
-  if ! __adrctl_page_help "${text}"; then
+  if ! __adrctl_page_help "${__adrctl_local_help_text}"; then
     __adrctl_fail_operational 'help pager failed'
     return $?
   fi
@@ -243,21 +244,22 @@ __adrctl_command_help() {
 ## @retval 0 ADR paths were written.
 ## @retval 1 ADR directory does not exist or output failed.
 __adrctl_command_list() {
-  local -a files
-  local path
-  local display
+  local -a __adrctl_local_files
+  local __adrctl_local_path
+  local __adrctl_local_display
 
   if [[ ! -d ${__adrctl_adr_dir} ]]; then
     __adrctl_fail_operational "ADR directory does not exist: ${__adrctl_adr_dir}"
     return $?
   fi
 
-  declare -a files=()
-  __adrctl_collect_adrs files
+  declare -a __adrctl_local_files=()
+  __adrctl_collect_adrs __adrctl_local_files
 
-  for path in "${files[@]}"; do
-    __adrctl_display_path "${path}" display || display="${path}"
-    printf '%s\n' "${display}" || return "${__adrctl_exit_operational}"
+  for __adrctl_local_path in "${__adrctl_local_files[@]}"; do
+    __adrctl_display_path "${__adrctl_local_path}" __adrctl_local_display || \
+      __adrctl_local_display="${__adrctl_local_path}"
+    printf '%s\n' "${__adrctl_local_display}" || return "${__adrctl_exit_operational}"
   done
 }
 
@@ -268,68 +270,72 @@ __adrctl_command_list() {
 ## @retval 1 Initialization could not be completed safely.
 ## @retval 2 Too many arguments were supplied.
 __adrctl_command_init() {
-  local directory_arg
-  local directory_set
-  local target_dir
-  local marker_value
-  local marker_temp
-  local marker_target
-  local number
-  local date
-  local filename_pattern
-  local filename
-  local destination
-  local prepared
-  local display
-  local -a existing
-  local -A context
+  local __adrctl_local_directory_arg
+  local __adrctl_local_directory_set
+  local __adrctl_local_target_dir
+  local __adrctl_local_marker_value
+  local __adrctl_local_marker_temp
+  local __adrctl_local_marker_target
+  local __adrctl_local_number
+  local __adrctl_local_date
+  local __adrctl_local_filename_pattern
+  local __adrctl_local_filename
+  local __adrctl_local_destination
+  local __adrctl_local_prepared
+  local __adrctl_local_display
+  local -a __adrctl_local_existing
+  local -A __adrctl_local_context
 
   if (( $# > 1 )); then
     __adrctl_fail_usage 'init accepts at most one DIRECTORY argument'
     return $?
   fi
 
-  directory_arg="${1-}"
-  directory_set=0
-  [[ $# -eq 1 ]] && directory_set=1
+  __adrctl_local_directory_arg="${1-}"
+  __adrctl_local_directory_set=0
+  [[ $# -eq 1 ]] && __adrctl_local_directory_set=1
 
-  if (( directory_set )); then
-    if [[ -z ${directory_arg} ]]; then
+  if (( __adrctl_local_directory_set )); then
+    if [[ -z ${__adrctl_local_directory_arg} ]]; then
       __adrctl_fail_usage 'init DIRECTORY must not be empty'
       return $?
     fi
-    target_dir="$(__adrctl_join_path "${__adrctl_project_root}" "${directory_arg}")"
-    marker_value="${directory_arg}"
+    __adrctl_local_target_dir="$(__adrctl_join_path \
+      "${__adrctl_project_root}" "${__adrctl_local_directory_arg}")"
+    __adrctl_local_marker_value="${__adrctl_local_directory_arg}"
   else
-    target_dir="${__adrctl_adr_dir}"
-    marker_value=''
+    __adrctl_local_target_dir="${__adrctl_adr_dir}"
+    __adrctl_local_marker_value=''
   fi
 
-  __adrctl_adr_dir="${target_dir%/}"
-  declare -a existing=()
-  __adrctl_collect_adrs existing
-  if (( ${#existing[@]} > 0 )); then
+  __adrctl_adr_dir="${__adrctl_local_target_dir%/}"
+  declare -a __adrctl_local_existing=()
+  __adrctl_collect_adrs __adrctl_local_existing
+  if (( ${#__adrctl_local_existing[@]} > 0 )); then
     __adrctl_fail_operational "ADR repository already contains records: ${__adrctl_adr_dir}"
     return $?
   fi
 
-  number=1
-  date="$(__adrctl_current_date)"
-  declare -A context=()
-  if ! __adrctl_populate_context context \
-    "${number}" 'Record architecture decisions' Accepted "${date}"; then
+  __adrctl_local_number=1
+  __adrctl_local_date="$(__adrctl_current_date)"
+  declare -A __adrctl_local_context=()
+  if ! __adrctl_populate_context __adrctl_local_context \
+    "${__adrctl_local_number}" 'Record architecture decisions' Accepted \
+    "${__adrctl_local_date}"; then
     __adrctl_fail_operational 'failed to prepare initialization template context'
     return $?
   fi
 
-  __adrctl_config_effective_filename_pattern filename_pattern
-  if ! __adrctl_render_filename context "${filename_pattern}" filename; then
+  __adrctl_config_effective_filename_pattern __adrctl_local_filename_pattern
+  if ! __adrctl_render_filename __adrctl_local_context \
+    "${__adrctl_local_filename_pattern}" __adrctl_local_filename; then
     return $?
   fi
 
-  destination="${__adrctl_adr_dir}/${filename}"
-  [[ ! -e ${destination} ]] || {
-    __adrctl_fail_operational "ADR destination already exists: ${destination}"
+  __adrctl_local_destination="${__adrctl_adr_dir}/${__adrctl_local_filename}"
+  [[ ! -e ${__adrctl_local_destination} ]] || {
+    __adrctl_fail_operational \
+      "ADR destination already exists: ${__adrctl_local_destination}"
     return $?
   }
 
@@ -338,42 +344,46 @@ __adrctl_command_init() {
     return $?
   fi
 
-  __adrctl_temp_path "${destination}" init prepared
-  if ! __adrctl_render_body_to_path context init '' '' '' "${prepared}"; then
-    rm -f "${prepared}"
+  __adrctl_temp_path "${__adrctl_local_destination}" init __adrctl_local_prepared
+  if ! __adrctl_render_body_to_path __adrctl_local_context init '' '' '' \
+    "${__adrctl_local_prepared}"; then
+    rm -f "${__adrctl_local_prepared}"
     __adrctl_fail_operational 'failed to render initialization ADR'
     return $?
   fi
 
-  if (( directory_set )); then
-    marker_target="${__adrctl_project_root}/.adr-dir"
-    marker_temp="${__adrctl_project_root}/.adr-dir.adrctl.$$.$RANDOM.tmp"
-    if ! printf '%s\n' "${marker_value}" >"${marker_temp}"; then
-      rm -f "${prepared}" "${marker_temp}"
-      __adrctl_fail_operational "cannot prepare ${marker_target}"
+  if (( __adrctl_local_directory_set )); then
+    __adrctl_local_marker_target="${__adrctl_project_root}/.adr-dir"
+    __adrctl_local_marker_temp="${__adrctl_project_root}/.adr-dir.adrctl.$$.$RANDOM.tmp"
+    if ! printf '%s\n' "${__adrctl_local_marker_value}" >"${__adrctl_local_marker_temp}"; then
+      rm -f "${__adrctl_local_prepared}" "${__adrctl_local_marker_temp}"
+      __adrctl_fail_operational "cannot prepare ${__adrctl_local_marker_target}"
       return $?
     fi
   else
-    marker_target=''
-    marker_temp=''
+    __adrctl_local_marker_target=''
+    __adrctl_local_marker_temp=''
   fi
 
-  if ! __adrctl_publish_new_file "${prepared}" "${destination}"; then
-    rm -f "${prepared}" "${marker_temp}"
+  if ! __adrctl_publish_new_file \
+    "${__adrctl_local_prepared}" "${__adrctl_local_destination}"; then
+    rm -f "${__adrctl_local_prepared}" "${__adrctl_local_marker_temp}"
     __adrctl_fail_operational \
-      "ADR destination appeared during initialization: ${destination}"
+      "ADR destination appeared during initialization: ${__adrctl_local_destination}"
     return $?
   fi
 
-  if [[ -n ${marker_target} ]]; then
-    if ! mv "${marker_temp}" "${marker_target}"; then
-      __adrctl_fail_operational "failed to write legacy ADR directory marker: ${marker_target}"
+  if [[ -n ${__adrctl_local_marker_target} ]]; then
+    if ! mv "${__adrctl_local_marker_temp}" "${__adrctl_local_marker_target}"; then
+      __adrctl_fail_operational \
+        "failed to write legacy ADR directory marker: ${__adrctl_local_marker_target}"
       return $?
     fi
   fi
 
-  __adrctl_display_path "${destination}" display || display="${destination}"
-  printf '%s\n' "${display}"
+  __adrctl_display_path "${__adrctl_local_destination}" __adrctl_local_display || \
+    __adrctl_local_display="${__adrctl_local_destination}"
+  printf '%s\n' "${__adrctl_local_display}"
 }
 
 ## @fn __adrctl_parse_link_spec()
@@ -385,27 +395,30 @@ __adrctl_command_init() {
 ## @retval 0 Exactly three non-empty fields were parsed.
 ## @retval 2 The specification is malformed.
 __adrctl_parse_link_spec() {
-  local spec
-  local rest
-  local target
-  local forward
-  local reverse
+  local __adrctl_local_spec
+  local __adrctl_local_rest
+  local __adrctl_local_target
+  local __adrctl_local_forward
+  local __adrctl_local_reverse
 
-  spec="$1"
-  [[ ${spec} == *:*:* ]] || return "${__adrctl_exit_usage}"
+  __adrctl_local_spec="$1"
+  [[ ${__adrctl_local_spec} == *:*:* ]] || return "${__adrctl_exit_usage}"
 
-  target="${spec%%:*}"
-  rest="${spec#*:}"
-  forward="${rest%%:*}"
-  reverse="${rest#*:}"
+  __adrctl_local_target="${__adrctl_local_spec%%:*}"
+  __adrctl_local_rest="${__adrctl_local_spec#*:}"
+  __adrctl_local_forward="${__adrctl_local_rest%%:*}"
+  __adrctl_local_reverse="${__adrctl_local_rest#*:}"
 
-  if [[ ${reverse} == *:* || -z ${target} || -z ${forward} || -z ${reverse} ]]; then
+  if [[ ${__adrctl_local_reverse} == *:* || \
+    -z ${__adrctl_local_target} || \
+    -z ${__adrctl_local_forward} || \
+    -z ${__adrctl_local_reverse} ]]; then
     return "${__adrctl_exit_usage}"
   fi
 
-  printf -v "$2" '%s' "${target}"
-  printf -v "$3" '%s' "${forward}"
-  printf -v "$4" '%s' "${reverse}"
+  printf -v "$2" '%s' "${__adrctl_local_target}"
+  printf -v "$3" '%s' "${__adrctl_local_forward}"
+  printf -v "$4" '%s' "${__adrctl_local_reverse}"
 }
 
 ## @fn __adrctl_command_new()
@@ -1060,7 +1073,7 @@ __adrctl_command_generate() {
   local report
 
   if (( $# == 0 )); then
-    printf '%s\n' graph toc
+    printf '%s\n' toc graph
     return $?
   fi
 
