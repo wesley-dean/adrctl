@@ -128,7 +128,7 @@ $(DOXYGEN_BASH_FILTER):
 
 ## Remove generated reference documentation while preserving its sentinel README.
 docs-clean:
-	@if [[ -d "$(REFERENCE_DOC_DIR)" ]; then \
+	@if [[ -d "$(REFERENCE_DOC_DIR)" ]]; then \
 		find "$(REFERENCE_DOC_DIR)" -mindepth 1 ! -name README.md -exec rm -rf {} +; \
 	fi
 
