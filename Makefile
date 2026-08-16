@@ -57,11 +57,11 @@ build: $(SOURCE_FILES) $(MKTEXT_ARTIFACT)
 		printf '__adrctl_build_date=%q\n' "$(BUILD_DATE)"; \
 		printf '__adrctl_build_commit=%q\n' "$(BUILD_COMMIT)"; \
 		printf '\n'; \
-		cat $(LIB_FILES); \
+		sed '/^#/d' $(LIB_FILES); \
 		printf '\n'; \
 		cat "$(MKTEXT_ARTIFACT)"; \
 		printf '\n'; \
-		cat "$(ENTRYPOINT)"; \
+		sed '/^#/d' "$(ENTRYPOINT)"; \
 	} >"$(DIST_SCRIPT).tmp"
 	chmod 0755 "$(DIST_SCRIPT).tmp"
 	mv "$(DIST_SCRIPT).tmp" "$(DIST_SCRIPT)"
