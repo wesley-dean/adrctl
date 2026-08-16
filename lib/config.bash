@@ -221,8 +221,13 @@ __adrctl_config_load_project_file() {
     return $?
   fi
 
+  if ! exec 3<"${path}"; then
+    __adrctl_fail_operational "cannot open project configuration: ${path}"
+    return $?
+  fi
+
   line_number=0
-  while IFS= read -r line || [[ -n ${line} ]]; do
+  while IFS= read -r -u 3 line || [[ -n ${line} ]]; do
     line_number=$((line_number + 1))
     key=''
     value=''
@@ -244,7 +249,8 @@ __adrctl_config_load_project_file() {
         return $?
         ;;
     esac
-  done <"${path}"
+  done
+  exec 3<&-
 
   __adrctl_config_validate_pair \
     "${__adrctl_cfg_start_delimiter}" "${__adrctl_cfg_start_delimiter_set}" \
