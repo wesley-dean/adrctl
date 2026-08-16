@@ -19,7 +19,7 @@ SOURCE_FILES := $(LIB_FILES) $(ENTRYPOINT)
 
 VENDOR_DIR := vendor
 MKTEXT_VERSION := 0.0.7
-MKTEXT_ARTIFACT := $(VENDOR_DIR)/mktext.bash
+MKTEXT_ARTIFACT := $(VENDOR_DIR)/mktext-v$(MKTEXT_VERSION).bash
 MKTEXT_URL := https://github.com/wesley-dean/mktext/releases/download/v$(MKTEXT_VERSION)/mktext.bash
 MKTEXT_SHA256 := 213cee4663512954f486c8a6ff00ddd36a9b4c48ceb3e9b71d9ec70a36c1e0dd
 
@@ -45,9 +45,10 @@ all: build
 ## BUILD_COMMIT are build inputs rather than filesystem prerequisites.  Rebuilding
 ## prevents development metadata from leaking into a later release artifact.
 ## Full-line comments are stripped from maintained adrctl source during assembly,
-## following the Bootstrap distribution pattern.  The pinned mktext artifact is
-## embedded unchanged and is deliberately excluded from that filtering step.
-build: $(SOURCE_FILES) $(MKTEXT_ARTIFACT)
+## following the Bootstrap distribution pattern.  The pinned mktext release asset
+## is cached under a version-addressed local filename, verified before every build,
+## embedded unchanged, and deliberately excluded from adrctl comment filtering.
+build: $(SOURCE_FILES) verify-mktext
 	mkdir -p "$(DIST_DIR)"
 	{ \
 		printf '%s\n' '#!/usr/bin/env bash'; \
@@ -71,6 +72,9 @@ build: $(SOURCE_FILES) $(MKTEXT_ARTIFACT)
 	bash -n "$(DIST_SCRIPT)"
 
 ## Acquire the pinned mktext release artifact and verify its published digest.
+##
+## The local cache filename includes the pinned version so changing the pin cannot
+## silently reuse bytes downloaded for an earlier release.
 $(MKTEXT_ARTIFACT):
 	mkdir -p "$(VENDOR_DIR)"
 	curl -fsSL "$(MKTEXT_URL)" -o "$@.tmp"
@@ -89,10 +93,13 @@ $(MKTEXT_ARTIFACT):
 verify-mktext: $(MKTEXT_ARTIFACT)
 	@if command -v sha256sum >/dev/null 2>&1; then \
 		printf '%s  %s\n' "$(MKTEXT_SHA256)" "$(MKTEXT_ARTIFACT)" | sha256sum -c -; \
-	else \
+	elif command -v shasum >/dev/null 2>&1; then \
 		actual="$$(shasum -a 256 "$(MKTEXT_ARTIFACT)" | awk '{print $$1}')"; \
 		[[ "$${actual}" == "$(MKTEXT_SHA256)" ]]; \
 		printf '%s: OK\n' "$(MKTEXT_ARTIFACT)"; \
+	else \
+		printf '%s\n' 'No SHA-256 verification command is available' >&2; \
+		exit 1; \
 	fi
 
 ## Validate maintained Bash source.
@@ -159,5 +166,5 @@ clean:
 	rm -rf "$(DIST_DIR)" "$(TEST_RESULTS_DIR)"
 
 distclean: clean docs-clean
-	rm -f "$(MKTEXT_ARTIFACT)" "$(DOXYGEN_BASH_FILTER)"
+	rm -f "$(VENDOR_DIR)"/mktext-v*.bash "$(VENDOR_DIR)/mktext.bash" "$(DOXYGEN_BASH_FILTER)"
 	-rmdir "$(VENDOR_DIR)" >/dev/null 2>&1
