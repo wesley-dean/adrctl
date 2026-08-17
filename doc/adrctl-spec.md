@@ -909,7 +909,6 @@ test
 test-report
 docs
 docs-clean
-docs-stage
 checksums
 clean
 distclean
@@ -944,7 +943,7 @@ README.md          human-facing product overview and use
 AGENTS.md          contributor/agent operating guidance
 doc/adr/*.md       architectural rationale and decisions
 doc/adrctl-spec.md normative public behavioral contract
-doc/reference/     generated source-reference documentation
+doc/reference/     generated source-reference documentation; ignored by Git
 source comments    implementation-level contracts and constraints
 ```
 
@@ -952,8 +951,9 @@ Hand-maintained Bash source SHALL use Doxygen-compatible documentation comments
 for modules, functions, important state, side effects, streams, statuses, and
 non-obvious invariants where applicable.
 
-`make docs` SHALL regenerate browsable reference documentation.  GitHub Pages
-SHOULD publish the generated reference output from the default branch.
+`make docs` SHALL regenerate browsable reference documentation under the ignored
+`doc/reference/` directory.  GitHub Pages SHOULD publish the generated reference
+output directly from CI without committing generated files to the repository.
 
 ## Development Contract
 
