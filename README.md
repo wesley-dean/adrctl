@@ -400,7 +400,8 @@ Project documentation is deliberately split by responsibility:
 - `AGENTS.md` - contributor and coding-agent guidance
 - `doc/adr/` - architecture decisions and rationale
 - `doc/adrctl-spec.md` - normative behavioral specification
-- `doc/reference/` - generated source-reference documentation, ignored by Git and published through GitHub Pages
+- `doc/reference/` - generated source-reference documentation, ignored by Git and
+  published through GitHub Pages
 - source comments - implementation contracts and invariants
 
 The initial architecture and compatibility analysis is also retained under
