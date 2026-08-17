@@ -361,5 +361,6 @@ $RECYCLE.BIN/
 # SonarScanner
 .scannerwork
 
-# Generated build dependencies
-vendor/
+# Generated Doxygen reference output and downloaded documentation tooling.
+/doc/reference/
+/vendor/

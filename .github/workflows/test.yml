@@ -70,4 +70,5 @@ jobs:
       - name: Verify reference documentation output
         run: |
           test -f doc/reference/index.html
-          test -f doc/reference/README.md
+          git check-ignore -q doc/reference/index.html
+          test -z "$(git status --porcelain --untracked-files=all -- doc/reference)"

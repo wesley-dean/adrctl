@@ -4,6 +4,7 @@
 [![MegaLinter](https://github.com/wesley-dean/adrctl/actions/workflows/megalinter.yml/badge.svg)](https://github.com/wesley-dean/adrctl/actions/workflows/megalinter.yml)
 [![Scorecard supply-chain security](https://github.com/wesley-dean/adrctl/actions/workflows/scorecard.yml/badge.svg)](https://github.com/wesley-dean/adrctl/actions/workflows/scorecard.yml)
 [![Tests](https://github.com/wesley-dean/adrctl/actions/workflows/test.yml/badge.svg)](https://github.com/wesley-dean/adrctl/actions/workflows/test.yml)
+[![Documentation](https://github.com/wesley-dean/adrctl/actions/workflows/static.yml/badge.svg)](https://github.com/wesley-dean/adrctl/actions/workflows/static.yml)
 
 `adrctl` is a Bash tool for creating and maintaining Architecture Decision
 Records (ADRs).  It is a deliberate successor to
@@ -381,7 +382,7 @@ make test
 make test-report
 make format
 make docs
-make docs-stage
+make docs-clean
 make checksums
 make clean
 make distclean
@@ -399,7 +400,7 @@ Project documentation is deliberately split by responsibility:
 - `AGENTS.md` - contributor and coding-agent guidance
 - `doc/adr/` - architecture decisions and rationale
 - `doc/adrctl-spec.md` - normative behavioral specification
-- `doc/reference/` - generated source-reference documentation
+- `doc/reference/` - generated source-reference documentation, ignored by Git and published through GitHub Pages
 - source comments - implementation contracts and invariants
 
 The initial architecture and compatibility analysis is also retained under
