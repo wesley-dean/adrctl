@@ -48,14 +48,56 @@ Make assembles the exact consumer artifact:
 dist/adrctl.bash
 ```
 
-Build it with:
+From a fresh checkout, prepare the pinned dependencies and build the artifact with:
 
 ```bash
+make all
+```
+
+`make all` deliberately performs two ordered operations.  First, `make deps`
+bootstraps the pinned `vendor/bashdeps.bash` release artifact directly with
+`curl`, verifies its committed SHA-256 digest, and uses it to synchronize the
+project's `dependencies.txt`.  Bashdeps then materializes the current pinned
+`mktext` and Bash Doxygen artifacts under `vendor/`.  After dependency
+synchronization succeeds, `make all` runs `make build`.
+
+The current dependency boundary is:
+
+```text
+Makefile
+  -> vendor/bashdeps.bash
+  -> make deps
+       -> vendor/bashdeps.bash sync dependencies.txt
+            -> vendor/mktext.bash
+            -> vendor/doxygen-bash.awk
+  -> make build
+       -> dist/adrctl.bash
+```
+
+The Makefile owns only the bootstrap version, URL, and digest for `bashdeps.bash`.
+Ordinary external dependency declarations live in `dependencies.txt`.  The
+current manifest pins `mktext` v0.0.9 and `bash-doxygen` v0.0.6.
+
+The workflow may also be run explicitly:
+
+```bash
+make deps
+make deps-check
 make build
 ```
 
-The build acquires `mktext` v0.0.7 when necessary and verifies its published
-SHA-256 digest before embedding it unchanged.
+`make deps` may use the network and repairs missing or mismatched dependency
+state.  `make deps-check` verifies an already-present bashdeps bootstrap and all
+manifest-managed artifacts without downloading or repairing anything.
+
+Plain `make build` is intentionally network-free and dependency-management-free.
+It consumes the prepared `vendor/mktext.bash` bytes and fails with a diagnostic
+when that build input is absent.  Repeated builds therefore do not re-hash the
+complete dependency set merely because another build was requested.
+
+The verified `mktext.bash` bytes are embedded unchanged into the generated
+`adrctl.bash` artifact.  `bashdeps.bash`, `dependencies.txt`, and the files under
+`vendor/` are build/development inputs and are not required at runtime.
 
 The generated artifact is build output rather than maintained source.  Do not
 edit `dist/adrctl.bash` directly.
@@ -376,6 +418,9 @@ The canonical contributor workflow is documented in `AGENTS.md`.
 Useful Make targets include:
 
 ```bash
+make all
+make deps
+make deps-check
 make build
 make check
 make test
@@ -387,6 +432,15 @@ make checksums
 make clean
 make distclean
 ```
+
+`make all` is the fresh-checkout convenience path: synchronize approved
+dependencies and then build.  `make build` assumes dependency state has already
+been prepared.  `make deps-check` provides the corresponding network-free
+integrity check.
+
+`make docs` synchronizes the manifest-managed Bash Doxygen filter before
+regenerating `doc/reference/`; the generated reference tree remains ignored by
+Git.
 
 The behavior suite exercises the generated artifact rather than assuming that
 valid individual source modules imply a valid assembled executable.  CI also runs
@@ -413,9 +467,10 @@ Releases use Semantic Versioning and publish one canonical `adrctl.bash`
 distribution artifact.  The product identity remains `adrctl`; README command
 examples use the released `adrctl.bash` filename unless demonstrating the
 supported `adr` compatibility invocation.
-Release validation builds and tests the exact artifact, generates a SHA-256
-checksum, and produces GitHub provenance attestation when supported by the
-release platform.
+
+Release validation synchronizes and verifies the committed dependency manifest
+before building and testing the exact artifact, generates a SHA-256 checksum, and
+produces GitHub provenance attestation when supported by the release platform.
 
 ## License
 

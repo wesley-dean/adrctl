@@ -91,7 +91,7 @@ It SHALL:
 - begin with `#!/usr/bin/env bash`;
 - be executable with mode `0755`;
 - contain the complete required runtime implementation in one file;
-- embed the verified `mktext` v0.0.7 release artifact unchanged;
+- embed the verified `mktext` v0.0.9 release artifact unchanged;
 - contain exactly one effective `adrctl` product entrypoint;
 - remain executable directly, through an installed `adrctl` name, through an
   `adr` filesystem symlink, and through a shell alias that expands to its path;
@@ -885,15 +885,43 @@ that expands to the artifact path.
 Normal runtime operations SHALL NOT fetch dependencies or templates from the
 network.
 
-The build/release process pins `mktext` v0.0.7.  The expected release-asset
-SHA-256 is:
+Build/development dependency acquisition is separated from ordinary artifact
+assembly.
+
+The Makefile SHALL directly bootstrap only the pinned `bashdeps.bash` build tool.
+The selected bootstrap release is v0.0.6, and the Makefile SHALL retain its
+expected SHA-256 digest as committed trust data.
+
+Ordinary external project dependencies SHALL be declared in the committed
+`dependencies.txt` manifest and materialized beneath `vendor/` through bashdeps.
+The current manifest SHALL pin:
 
 ```text
-213cee4663512954f486c8a6ff00ddd36a9b4c48ceb3e9b71d9ec70a36c1e0dd
+mktext        v0.0.9  vendor/mktext.bash
+bash-doxygen  v0.0.6  vendor/doxygen-bash.awk
 ```
 
-The artifact SHALL be verified before it is embedded unchanged into
+`make deps` MAY access the network.  It SHALL bootstrap or repair the pinned
+`vendor/bashdeps.bash` artifact when necessary, verify that bootstrap before use,
+and invoke bashdeps synchronization for `dependencies.txt`.
+
+`make deps-check` SHALL NOT access the network or repair dependency state.  It
+SHALL require and verify the existing bashdeps bootstrap, then invoke bashdeps
+verification for the manifest-managed artifacts.
+
+`make build` SHALL NOT bootstrap, synchronize, or verify external dependencies.
+It SHALL consume the already-prepared `vendor/mktext.bash` artifact and fail if
+that required build input is absent.
+
+`make all` SHALL explicitly synchronize dependencies before invoking `make build`.
+The ordering SHALL remain correct under parallel Make execution.
+
+The verified `vendor/mktext.bash` bytes SHALL be embedded unchanged into
 `dist/adrctl.bash`.
+
+`bashdeps.bash`, `dependencies.txt`, `vendor/mktext.bash`, and
+`vendor/doxygen-bash.awk` are build/development inputs only.  The generated
+`dist/adrctl.bash` artifact SHALL require none of them at runtime.
 
 ## Build and Release Contract
 
@@ -902,7 +930,10 @@ Make is the canonical orchestration interface.
 The repository SHALL provide at least:
 
 ```text
-all/build
+all
+deps
+deps-check
+build
 check
 format
 test
@@ -916,11 +947,15 @@ distclean
 
 The maintained module order used for assembly SHALL be explicit.
 
+`all` SHALL synchronize dependencies and then build.  `build` SHALL remain free of
+implicit dependency acquisition and verification.  `deps-check` SHALL remain the
+network-free integrity-checking surface for already-prepared dependency state.
+
 Release automation SHALL:
 
 1. calculate/validate the SemVer release version without creating an early tag;
 2. validate maintained source;
-3. acquire and verify pinned build dependencies;
+3. synchronize and verify pinned build dependencies;
 4. build the exact release-version `dist/adrctl.bash` artifact;
 5. validate the exact artifact with the behavior suite;
 6. validate the exact artifact under Bash 4.3;
@@ -951,9 +986,10 @@ Hand-maintained Bash source SHALL use Doxygen-compatible documentation comments
 for modules, functions, important state, side effects, streams, statuses, and
 non-obvious invariants where applicable.
 
-`make docs` SHALL regenerate browsable reference documentation under the ignored
-`doc/reference/` directory.  GitHub Pages SHOULD publish the generated reference
-output directly from CI without committing generated files to the repository.
+`make docs` SHALL synchronize the manifest-managed documentation inputs and
+regenerate browsable reference documentation under the ignored `doc/reference/`
+directory.  GitHub Pages SHOULD publish the generated reference output directly
+from CI without committing generated files to the repository.
 
 ## Development Contract
 

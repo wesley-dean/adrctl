@@ -1,0 +1,10 @@
+# Dependencies synchronized by vendor/bashdeps.bash.
+#
+# The bashdeps bootstrap itself is pinned and verified by the Makefile because the
+# dependency manager cannot use this manifest to obtain its first local copy.
+#
+# Keep each dependency on one physical line so this manifest remains compatible
+# with the pinned released bashdeps bootstrap.
+
+id=wesley-dean/mktext@0.0.9 url=https://github.com/wesley-dean/mktext/releases/download/v0.0.9/mktext.bash dest=vendor/mktext.bash digest=sha256:b25cc84f733ccb8368f6cba98578ea7e266638cb61e794fc0028f16266cd336a
+id=wesley-dean/bash-doxygen@0.0.6 url=https://raw.githubusercontent.com/wesley-dean/bash-doxygen/v0.0.6/doxygen-bash.awk dest=vendor/doxygen-bash.awk digest=sha256:dc09bccac7cdb69940b2b34f0c2a92d862c5979d578364ec66782ac92338a3ea

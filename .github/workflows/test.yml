@@ -28,10 +28,23 @@ jobs:
       - name: Install test dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install --yes bats shellcheck
+          sudo apt-get install --yes bats curl shellcheck
 
-      - name: Verify pinned mktext dependency
-        run: make verify-mktext
+      - name: Verify build does not acquire dependencies
+        run: |
+          if make build >build.stdout 2>build.stderr; then
+            printf '%s\n' 'make build unexpectedly succeeded without prepared dependencies' >&2
+            exit 1
+          fi
+          grep -F 'Missing build dependency vendor/mktext.bash; run make deps or make all' build.stderr
+          test ! -e vendor/bashdeps.bash
+          test ! -e vendor/mktext.bash
+
+      - name: Synchronize project dependencies
+        run: make deps
+
+      - name: Verify synchronized dependency state
+        run: make deps-check
 
       - name: Run source and generated-artifact validation
         run: make check test
@@ -42,8 +55,8 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # pin@v4
 
-      - name: Build compatibility artifact
-        run: make build VERSION=0.0.0-ci
+      - name: Build compatibility artifact from a fresh dependency state
+        run: make all VERSION=0.0.0-ci
 
       - name: Verify minimum Bash version
         run: |
@@ -66,6 +79,9 @@ jobs:
 
       - name: Generate reference documentation
         run: make docs
+
+      - name: Verify dependency state after documentation generation
+        run: make deps-check
 
       - name: Verify reference documentation output
         run: |

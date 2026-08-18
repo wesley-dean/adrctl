@@ -26,14 +26,21 @@ sha256_of() {
   [ "${status}" -eq 0 ]
 }
 
-@test "dependency cache is invalidated when the pinned mktext version changes" {
-  local fixture_root fixture cache_dir dist_dir digest
+@test "deps converges stale mktext bytes to the manifest digest" {
+  local fixture_root fixture vendor_dir fake_bin manifest bootstrap_digest digest curl_sentinel
 
-  fixture_root="${BATS_TEST_TMPDIR}/pin-change"
-  fixture="${fixture_root}/mktext.bash"
-  cache_dir="${fixture_root}/vendor"
-  dist_dir="${fixture_root}/dist"
-  mkdir -p "${cache_dir}"
+  fixture_root="${BATS_TEST_TMPDIR}/dependency-convergence"
+  fixture="${fixture_root}/expected-mktext.bash"
+  vendor_dir="${fixture_root}/vendor"
+  fake_bin="${fixture_root}/bin"
+  manifest="${fixture_root}/dependencies.txt"
+  curl_sentinel="${fixture_root}/curl-called"
+  mkdir -p "${vendor_dir}" "${fake_bin}"
+
+  cp "${REPO_ROOT}/Makefile" "${fixture_root}/Makefile"
+  cp "${REPO_ROOT}/vendor/bashdeps.bash" "${vendor_dir}/bashdeps.bash"
+  chmod 0755 "${vendor_dir}/bashdeps.bash"
+  bootstrap_digest="$(sha256_of "${vendor_dir}/bashdeps.bash")"
 
   cat >"${fixture}" <<'EOF'
 #!/usr/bin/env bash
@@ -41,46 +48,86 @@ readonly __mktext_fixture=1
 EOF
   digest="$(sha256_of "${fixture}")"
 
-  printf '%s\n' 'stale dependency bytes' >"${cache_dir}/mktext-vold.bash"
+  printf '%s\n' 'stale dependency bytes' >"${vendor_dir}/mktext.bash"
+  printf '%s\n' \
+    "id=fixture-mktext@2 url=https://example.test/mktext.bash dest=vendor/mktext.bash digest=sha256:${digest}" \
+    >"${manifest}"
 
-  run make -C "${REPO_ROOT}" build \
-    VENDOR_DIR="${cache_dir}" \
-    DIST_DIR="${dist_dir}" \
-    MKTEXT_VERSION=test \
-    MKTEXT_URL="file://${fixture}" \
-    MKTEXT_SHA256="${digest}"
+  cat >"${fake_bin}/curl" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+
+output=''
+while (($#)); do
+  case $1 in
+    --output)
+      output=$2
+      shift 2
+      ;;
+    --)
+      shift
+      [[ $# -eq 1 ]]
+      shift
+      ;;
+    *)
+      shift
+      ;;
+  esac
+done
+
+[[ -n $output ]]
+if [[ -n ${BASHDEPS_CURL_SENTINEL:-} ]]; then
+  : >"${BASHDEPS_CURL_SENTINEL}"
+fi
+cp "${BASHDEPS_TEST_FIXTURE}" "$output"
+EOF
+  chmod 0755 "${fake_bin}/curl"
+
+  run env \
+    PATH="${fake_bin}:${PATH}" \
+    BASHDEPS_TEST_FIXTURE="${fixture}" \
+    make -C "${fixture_root}" deps \
+      CHECK_BASH_FILES= \
+      BASHDEPS_SHA256="${bootstrap_digest}" \
+      BASHDEPS_URL=https://example.test/bashdeps.bash
 
   [ "${status}" -eq 0 ]
-  [ -f "${cache_dir}/mktext-vtest.bash" ]
-  cmp "${fixture}" "${cache_dir}/mktext-vtest.bash"
+  cmp "${fixture}" "${vendor_dir}/mktext.bash"
+
+  printf '%s\n' 'tampered after synchronization' >"${vendor_dir}/mktext.bash"
+  run env \
+    PATH="${fake_bin}:${PATH}" \
+    BASHDEPS_TEST_FIXTURE="${fixture}" \
+    BASHDEPS_CURL_SENTINEL="${curl_sentinel}" \
+    make -C "${fixture_root}" deps-check \
+      CHECK_BASH_FILES= \
+      BASHDEPS_SHA256="${bootstrap_digest}"
+
+  [ "${status}" -ne 0 ]
+  [ ! -e "${curl_sentinel}" ]
 }
 
-@test "build rejects modified bytes in the cache for the active mktext pin" {
-  local fixture_root fixture cache_dir dist_dir digest
+@test "build consumes prepared mktext without dependency synchronization" {
+  local fixture_root cache_dir dist_dir
 
-  fixture_root="${BATS_TEST_TMPDIR}/tampered-cache"
-  fixture="${fixture_root}/mktext.bash"
+  fixture_root="${BATS_TEST_TMPDIR}/prepared-build"
   cache_dir="${fixture_root}/vendor"
   dist_dir="${fixture_root}/dist"
   mkdir -p "${cache_dir}"
 
-  cat >"${fixture}" <<'EOF'
+  cat >"${cache_dir}/mktext.bash" <<'EOF'
 #!/usr/bin/env bash
-readonly __mktext_fixture=1
+readonly __mktext_fixture_prepared=1
 EOF
-  digest="$(sha256_of "${fixture}")"
-
-  printf '%s\n' 'tampered dependency bytes' >"${cache_dir}/mktext-vtest.bash"
 
   run make -C "${REPO_ROOT}" build \
     VENDOR_DIR="${cache_dir}" \
-    DIST_DIR="${dist_dir}" \
-    MKTEXT_VERSION=test \
-    MKTEXT_URL="file://${fixture}" \
-    MKTEXT_SHA256="${digest}"
+    DIST_DIR="${dist_dir}"
 
-  [ "${status}" -ne 0 ]
-  [ ! -e "${dist_dir}/adrctl.bash" ]
+  [ "${status}" -eq 0 ]
+  [ -x "${dist_dir}/adrctl.bash" ]
+  grep -F 'readonly __mktext_fixture_prepared=1' "${dist_dir}/adrctl.bash"
+  [ ! -e "${cache_dir}/bashdeps.bash" ]
 }
 
 @test "clean removes generated distribution test results and vendor state" {

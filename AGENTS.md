@@ -56,8 +56,14 @@ Preserve these boundaries unless a later ADR intentionally changes them:
 - Project configuration is data and is never sourced or evaluated.
 - `mktext` performs textual substitution only; `adrctl` owns ADR-specific value
   acquisition and transformation.
-- `mktext` v0.0.7 is the pinned build dependency until an intentional dependency
-  update changes that decision.
+- The Makefile directly bootstraps only the pinned `bashdeps.bash` build tool.
+- Ordinary external build/development artifacts, including `mktext.bash` and the
+  Bash Doxygen filter, are declared in `dependencies.txt` and synchronized by
+  bashdeps under ADR-021.
+- `make build` consumes already-prepared dependency state and does not acquire or
+  verify external dependencies.
+- `make all` is the fresh-checkout convenience path that synchronizes dependencies
+  before building.
 - The embedded renderer adds no runtime network dependency.
 - Multi-file mutations preflight the complete intended change before writing.
 - Existing files use atomic per-file replacement where practical.
@@ -142,12 +148,14 @@ Build and development:
 - SHA-256 release checksums
 - GitHub artifact provenance attestation
 
-Build dependency:
+Build dependency management:
 
-- `mktext` v0.0.7
-- release asset: `mktext.bash`
-- expected SHA-256:
-  `213cee4663512954f486c8a6ff00ddd36a9b4c48ceb3e9b71d9ec70a36c1e0dd`
+- the Makefile pins and independently verifies the released `bashdeps.bash`
+  bootstrap artifact;
+- `dependencies.txt` pins the `mktext.bash` artifact embedded into adrctl;
+- `dependencies.txt` also pins `doxygen-bash.awk` for reference documentation;
+- exact current versions, immutable URLs, and SHA-256 digests SHALL be read from
+  the Makefile and `dependencies.txt` rather than duplicated in this guidance.
 
 ## Source and Build Boundaries
 
@@ -156,11 +164,30 @@ truth once those directories exist.
 
 Do not edit `dist/adrctl.bash` as though it were maintained source.
 
-The Makefile must enumerate build inputs explicitly.  Do not replace explicit
-source order with implicit plugin/module discovery.
+The Makefile must enumerate maintained build inputs explicitly.  Do not replace
+explicit source order with implicit plugin/module discovery.
+
+External build inputs are prepared separately:
+
+```text
+make deps
+```
+
+may bootstrap bashdeps and synchronize the committed manifest, while:
+
+```text
+make deps-check
+```
+
+verifies already-present dependency state without network access or repair.
+
+`make build` SHALL NOT bootstrap, synchronize, or verify external dependencies.
+It builds only from current local inputs.  `make all` explicitly sequences
+`make deps` followed by `make build` for callers that want a prepared fresh-checkout
+path.
 
 The build assembles one self-contained executable, injects immutable version/build
-metadata, and embeds the verified `mktext` dependency unchanged.
+metadata, and embeds the manifest-managed `mktext.bash` artifact unchanged.
 
 Do not strip, rewrite, patch, or textually transform the pinned `mktext` artifact
 inside the `adrctl` build.  If the dependency cannot be embedded unchanged, treat
@@ -177,13 +204,13 @@ Prefer small, readable Bash functions with one clear responsibility.
 
 Avoid `eval`.
 
-Do not source `.env`, `.adr-dir`, templates, ADR documents, or replacement values
-as shell code.
+Do not source `.env`, `.adr-dir`, templates, ADR documents, replacement values, or
+`dependencies.txt` as shell code.
 
 Quote expansions deliberately.
 
-Treat template text, configuration values, titles, relationship text, and ADR
-contents as data.
+Treat template text, configuration values, titles, relationship text, ADR
+contents, and dependency-manifest fields as data.
 
 Prefer Bash builtins when they implement the behavior clearly and safely on Bash
 4.3.  Use ordinary Unix commands where they make the implementation more obvious
@@ -238,7 +265,7 @@ ADR_DIR
 Do not move slugification, date generation, number padding, filesystem discovery,
 or ADR semantics into `mktext`.
 
-Use the pinned public `mktext` render API.
+Use the pinned public `mktext` render API provided by the manifest-managed artifact.
 
 Delimiter selection belongs to `adrctl`:
 
@@ -267,7 +294,7 @@ Documentation-only requests must preserve executable behavior exactly.
 
 ## Documentation Standards
 
-Follow ADR-017, ADR-018, and ADR-020.
+Follow ADR-017, ADR-018, ADR-020, and ADR-021.
 
 Hand-maintained Bash uses Doxygen-compatible documentation comments.
 
@@ -298,10 +325,12 @@ For a behavioral or architectural change:
 1. establish or update documented intent;
 2. implement the smallest coherent change;
 3. add or update observable-behavior tests;
-4. build and test the literal generated artifact when consumer behavior can be
+4. synchronize required external inputs explicitly when build/test work needs
+   them;
+5. build and test the literal generated artifact when consumer behavior can be
    affected;
-5. test through the `adr` symlink when invocation identity can be affected; and
-6. review the complete diff for architecture, compatibility, and documentation
+6. test through the `adr` symlink when invocation identity can be affected; and
+7. review the complete diff for architecture, compatibility, and documentation
    drift.
 
 Tests may be written first to reproduce a bug or characterize unknown behavior.
@@ -324,7 +353,7 @@ Prefer observable behavior:
 - editor/pager invocation boundaries;
 - generated reports;
 - configuration precedence;
-- dependency verification; and
+- dependency synchronization and verification; and
 - literal execution of `dist/adrctl.bash`.
 
 Do not couple tests to private helper names merely because they are convenient to
@@ -342,6 +371,10 @@ permissions, or the `adr` symlink path are correct.
 
 Minimum-runtime testing must include Bash 4.3.
 
+Build-boundary validation should also confirm that plain `make build` does not
+bootstrap or synchronize dependencies and that `make all` works from a fresh
+checkout.
+
 ## Validation
 
 When relevant, use the repository's Make targets rather than reproducing their
@@ -349,6 +382,8 @@ logic ad hoc.
 
 Validation should include the applicable subset of:
 
+- dependency synchronization with `make deps`;
+- offline dependency verification with `make deps-check`;
 - Bash syntax validation;
 - static analysis;
 - formatting checks;
@@ -369,9 +404,10 @@ The release artifact is `dist/adrctl.bash`.
 
 Release acceptance concerns the exact artifact bytes that will be published.
 
-The release workflow validates source and behavior, verifies `mktext`, builds the
-artifact with the chosen SemVer, validates the artifact, generates SHA-256,
-produces provenance attestation when supported, and publishes those exact bytes.
+The release workflow validates source and behavior, synchronizes and verifies the
+committed dependency manifest, builds the artifact with the chosen SemVer,
+validates the artifact, generates SHA-256, produces provenance attestation when
+supported, and publishes those exact bytes.
 
 Do not create a separately maintained `adr` executable.  Compatibility uses a
 symlink to the installed `adrctl` command.
@@ -383,6 +419,10 @@ Avoid:
 - copying `adr-tools` implementation code into the rewrite;
 - treating GPL-covered implementation expression as a shortcut to compatibility;
 - editing generated `dist/adrctl.bash` directly;
+- reintroducing separate direct Makefile acquisition for manifest-managed
+  dependencies;
+- making `make build` silently access the network or repair dependency state;
+- allowing `make deps-check` to bootstrap or mutate dependency state;
 - embedding an unverified or moving `mktext` dependency;
 - patching `mktext` during `adrctl` assembly;
 - allowing embedded `mktext` to claim the `adrctl` process entrypoint;

@@ -47,13 +47,15 @@ jobs:
       - name: Install release dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install --yes bats shellcheck
+          sudo apt-get install --yes bats curl shellcheck
 
       - name: Validate maintained source
         run: make check
 
-      - name: Verify pinned mktext dependency
-        run: make verify-mktext
+      - name: Synchronize and verify build dependencies
+        run: |
+          make deps
+          make deps-check
 
       - name: Build release artifact and checksum
         run: |
