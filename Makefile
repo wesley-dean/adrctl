@@ -36,7 +36,7 @@ VERSION ?= 0.0.0-dev
 BUILD_COMMIT ?= $(shell git rev-parse --short=12 HEAD 2>/dev/null || printf 'unknown')
 BUILD_DATE ?= $(shell git show -s --format=%cI HEAD 2>/dev/null || printf 'unknown')
 
-.PHONY: all build check checksums clean distclean docs docs-clean docs-stage format test test-report verify-mktext
+.PHONY: all build check checksums clean distclean docs docs-clean format test test-report verify-mktext
 
 all: build
 
@@ -131,27 +131,14 @@ $(DOXYGEN_BASH_FILTER):
 	chmod 0755 "$@.tmp"
 	mv "$@.tmp" "$@"
 
-## Remove generated reference documentation while preserving its sentinel README.
+## Remove generated Doxygen reference documentation.
 docs-clean:
-	@if [[ -d "$(REFERENCE_DOC_DIR)" ]]; then \
-		find "$(REFERENCE_DOC_DIR)" -mindepth 1 ! -name README.md -exec rm -rf {} +; \
-	fi
+	rm -rf "$(REFERENCE_DOC_DIR)"
 
 ## Regenerate browsable Doxygen reference documentation.
 docs: docs-clean $(DOXYGEN_BASH_FILTER)
 	mkdir -p "$(REFERENCE_DOC_DIR)"
 	doxygen Doxyfile
-	{ \
-		printf '%s\n' '# Reference Documentation'; \
-		printf '\n'; \
-		printf '%s\n' 'This directory contains documentation generated from adrctl Bash source.'; \
-		printf '%s\n' 'Do not edit generated reference files manually.'; \
-		printf '\n'; \
-		printf '%s\n' 'Regenerate with `make docs`.'; \
-	} >"$(REFERENCE_DOC_DIR)/README.md"
-
-docs-stage: docs
-	git add -A "$(REFERENCE_DOC_DIR)"
 
 ## Generate SHA-256 for the exact consumer artifact.
 checksums: build

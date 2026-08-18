@@ -62,7 +62,7 @@ jobs:
       - name: Install documentation dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install --yes doxygen
+          sudo apt-get install --yes curl doxygen
 
       - name: Generate reference documentation
         run: make docs
@@ -70,4 +70,5 @@ jobs:
       - name: Verify reference documentation output
         run: |
           test -f doc/reference/index.html
-          test -f doc/reference/README.md
+          git check-ignore -q doc/reference/index.html
+          test -z "$(git status --porcelain --untracked-files=all -- doc/reference)"

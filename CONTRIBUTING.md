@@ -69,12 +69,16 @@ make test
 make test-report
 make format
 make docs
-make docs-stage
+make docs-clean
 make checksums
 ```
 
 The generated artifact is `dist/adrctl.bash`.  It is build output, not maintained
 source, and should not be edited directly.
+
+Doxygen reference documentation under `doc/reference/` is also generated output.
+It is ignored by Git, regenerated with `make docs`, and published to GitHub Pages
+by the documentation workflow rather than committed to the repository.
 
 Tests should prefer observable behavior such as command arguments, standard
 streams, exit status, generated files, filesystem effects, reports, project

@@ -65,6 +65,8 @@ Preserve these boundaries unless a later ADR intentionally changes them:
 - Git may supply project context but does not own ADR mutation state.
 - `generate graph` emits Graphviz DOT and does not invoke Graphviz automatically.
 - Ambiguous ADR references fail rather than selecting the first incidental match.
+- Generated Doxygen output under `doc/reference/` is ignored build output and is
+  published through GitHub Pages rather than committed to the repository.
 
 ## Compatibility and Provenance
 
@@ -265,7 +267,7 @@ Documentation-only requests must preserve executable behavior exactly.
 
 ## Documentation Standards
 
-Follow ADR-017 and ADR-018.
+Follow ADR-017, ADR-018, and ADR-020.
 
 Hand-maintained Bash uses Doxygen-compatible documentation comments.
 
@@ -281,7 +283,8 @@ Documentation roles are distinct:
 - ADRs: why durable architectural choices were made;
 - `doc/adrctl-spec.md`: current public behavior;
 - source comments: implementation contracts;
-- `doc/reference`: generated source-reference documentation.
+- `doc/reference`: generated source-reference documentation, ignored by Git and
+  published through GitHub Pages.
 
 Do not use tests or source comments as substitutes for updating the normative
 specification when public behavior changes.
