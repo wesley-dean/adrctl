@@ -37,6 +37,7 @@ sha256_of() {
   curl_sentinel="${fixture_root}/curl-called"
   mkdir -p "${vendor_dir}" "${fake_bin}"
 
+  cp "${REPO_ROOT}/Makefile" "${fixture_root}/Makefile"
   cp "${REPO_ROOT}/vendor/bashdeps.bash" "${vendor_dir}/bashdeps.bash"
   chmod 0755 "${vendor_dir}/bashdeps.bash"
   bootstrap_digest="$(sha256_of "${vendor_dir}/bashdeps.bash")"
@@ -85,7 +86,7 @@ EOF
   run env \
     PATH="${fake_bin}:${PATH}" \
     BASHDEPS_TEST_FIXTURE="${fixture}" \
-    make -C "${fixture_root}" -f "${REPO_ROOT}/Makefile" deps \
+    make -C "${fixture_root}" deps \
       CHECK_BASH_FILES= \
       BASHDEPS_SHA256="${bootstrap_digest}" \
       BASHDEPS_URL=https://example.test/bashdeps.bash
@@ -98,7 +99,7 @@ EOF
     PATH="${fake_bin}:${PATH}" \
     BASHDEPS_TEST_FIXTURE="${fixture}" \
     BASHDEPS_CURL_SENTINEL="${curl_sentinel}" \
-    make -C "${fixture_root}" -f "${REPO_ROOT}/Makefile" deps-check \
+    make -C "${fixture_root}" deps-check \
       CHECK_BASH_FILES= \
       BASHDEPS_SHA256="${bootstrap_digest}"
 
