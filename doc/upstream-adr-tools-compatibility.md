@@ -119,13 +119,19 @@ rendering and two-pass substitution are not supported.
 
 ADR-003 established the policy of pinning, verifying, and embedding the published
 `mktext.bash` release artifact unchanged.  The first dependency satisfying the
-complete rendering and embedding requirements was v0.0.6.  The current build pins
-v0.0.7, which preserves the same public renderer/runtime behavior while moving
-full-line comment stripping into the `mktext` distribution build itself.
+complete rendering and embedding requirements was v0.0.6.  Release v0.0.7
+preserved that contract while moving full-line comment stripping into the
+`mktext` distribution build itself.
 
-The v0.0.7 execution guard remains inert when the same bytes are executed inside
-`adrctl.bash`, installed or linked as `adrctl`, or reached through an `adr`
-symlink, so the final product retains one effective process entrypoint.
+ADR-021 now places the current dependency pin in `dependencies.txt`, where
+`mktext` v0.0.9 is synchronized and SHA-256 verified through bashdeps before
+release/CI builds.  The compatibility and generated-artifact suites validate the
+renderer behavior and concatenation-safe execution guard that `adrctl` depends
+upon.
+
+The embedded execution guard remains inert when the verified bytes are executed
+inside `adrctl.bash`, installed or linked as `adrctl`, or reached through an
+`adr` symlink, so the final product retains one effective process entrypoint.
 
 ## License and provenance boundary
 
@@ -190,7 +196,7 @@ resolved:
   alias invocation under ADR-002 and ADR-019.
 - **Template compatibility:** one `mktext` renderer with automatic delimiter
   selection and explicit overrides is defined by ADR-001 and ADR-003.  The
-  current dependency pin is `mktext` v0.0.7.
+  current manifest pin is `mktext` v0.0.9 under ADR-021.
 - **Project discovery:** explicit root overrides win, then the nearest recognized
   `.adr-dir`, `doc/adr`, or qualifying `.env` marker, then Git root, then cwd,
   under ADR-005.
