@@ -3,24 +3,23 @@
 ## Status
 
 Working architecture note.  The `mktext` capabilities required by `adrctl` were
-first completed in `mktext` release `v0.0.6`.  The current pinned dependency is
-`v0.0.7`, which preserves that rendering and embedding contract while stripping
-full-line source comments from the `mktext.bash` distribution artifact in the
-`mktext` build itself.
+first completed in `mktext` release `v0.0.6`.  Release `v0.0.7` preserved that
+rendering and embedding contract while moving full-line source-comment stripping
+into the `mktext` distribution build.  The current `adrctl` dependency manifest
+pins `v0.0.9`, whose released artifact is exercised through the same rendering,
+embedding, and generated-artifact compatibility contract.
 
 The current pinned dependency is:
 
 ```text
-Release:      v0.0.7
+Release:      v0.0.9
 Artifact:     mktext.bash
-SHA-256:      213cee4663512954f486c8a6ff00ddd36a9b4c48ceb3e9b71d9ec70a36c1e0dd
+SHA-256:      b25cc84f733ccb8368f6cba98578ea7e266638cb61e794fc0028f16266cd336a
 ```
 
-Release `v0.0.7` retains the configurable render delimiters and
-concatenation-safe direct-execution guard required for embedding `mktext` in the
-generated `adrctl.bash` distribution artifact.  Its packaging change is owned by
-`mktext`; `adrctl` continues to verify and embed the published dependency bytes
-unchanged.
+The version, immutable release URL, destination, and digest are declared in
+`dependencies.txt` and synchronized by the pinned bashdeps build tool.  `adrctl`
+continues to embed the verified published dependency bytes unchanged.
 
 ## Context
 
@@ -131,9 +130,10 @@ render contract.
 
 ## Build and embedding consequence
 
-The `adrctl` build may incorporate the pinned `mktext.bash` release artifact into
-the generated `adrctl.bash` distribution artifact by ordered concatenation
-without rewriting or removing the `mktext` direct-execution guard.
+The `adrctl` build incorporates the prepared, manifest-managed `mktext.bash`
+release artifact into the generated `adrctl.bash` distribution artifact by
+ordered concatenation without rewriting or removing the `mktext` direct-execution
+guard.
 
 The final executable SHALL still have one effective product entrypoint owned by
 `adrctl`.  The embedded `mktext` guard remains inert when the artifact is executed
@@ -145,16 +145,19 @@ A shell alias that expands to the `adrctl.bash` path does not alter the executed
 script basename, so the same guard behavior applies without a special embedding
 mode.
 
-The build should verify the downloaded dependency against the pinned SHA-256
-before incorporating it.  A checksum mismatch SHALL fail the build before the
-dependency is used.
+Dependency preparation through `make deps` SHALL verify the materialized
+`mktext.bash` against the digest committed in `dependencies.txt`.  CI and release
+workflows SHALL synchronize and verify dependency state before building the exact
+consumer artifact.  Plain `make build` consumes already-prepared dependency state
+and does not independently download or re-verify the dependency.
 
 `adrctl` SHALL NOT strip, rewrite, or otherwise post-process `mktext.bash` during
 assembly.  Distribution cleanup inside `mktext.bash`, including comment stripping,
 is the responsibility of the `mktext` build and release process.
 
 Runtime network access SHALL NOT be required for template rendering.  Dependency
-acquisition is a build-time concern.
+acquisition is a build-time preparation concern rather than an `adrctl` runtime
+operation.
 
 ## Compatibility consequence
 
@@ -180,15 +183,19 @@ as compatible, an intentional deviation, or a defect before release.
 `mktext` `v0.0.6` is the first published release that satisfies the complete
 currently known `adrctl` rendering and embedding requirements.
 
-`mktext` `v0.0.7` changes only the dependency's distribution packaging: its build
-strips full-line source comments before publishing `mktext.bash`.  The public
-renderer/runtime source did not change between the two releases.  `adrctl`
-therefore pins `v0.0.7` and its SHA-256 digest while preserving the same dependency
-contract established by ADR-001 and ADR-003.
+`mktext` `v0.0.7` changed the dependency's distribution packaging so its build
+stripped full-line source comments before publishing `mktext.bash`; the renderer
+and embedding contract required by `adrctl` remained intact.
 
-A later upgrade should remain an intentional dependency change that updates the
-pinned version and digest together and reruns the `adrctl` compatibility and
-generated-artifact test suite.
+The current `adrctl` manifest pins `mktext` `v0.0.9` and its SHA-256 digest.  The
+upgrade is an explicit dependency-maintenance change: the released artifact is
+synchronized and verified through bashdeps, then the complete `adrctl`
+compatibility and generated-artifact test suites validate the behavior that
+`adrctl` relies upon.
+
+Future upgrades should remain intentional dependency changes that update the
+manifest identity, immutable URL, and digest together and rerun the same
+compatibility and generated-artifact validation.
 
 ## Architectural effect
 
@@ -197,6 +204,7 @@ templates?" and "Can the executable mktext artifact be safely embedded by
 concatenation?" are resolved.
 
 The architecture uses one renderer, `mktext`, with `adrctl` choosing the
-effective delimiter pair according to ADR-001.  The current `v0.0.7` dependency
-can be verified and concatenated into `dist/adrctl.bash` unchanged while leaving
-process startup under `adrctl` ownership.
+effective delimiter pair according to ADR-001.  The current `v0.0.9` dependency
+is materialized and verified from `dependencies.txt` and can be concatenated into
+`dist/adrctl.bash` unchanged while leaving process startup under `adrctl`
+ownership.
