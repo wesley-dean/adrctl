@@ -12,10 +12,10 @@ __adrctl_adr_dir=''
 ## @retval 0 Directory exists and can be entered.
 ## @retval 1 Directory is invalid or inaccessible.
 __adrctl_canonical_existing_dir() {
-  (
-    cd -- "$1" 2>/dev/null || exit 1
-    pwd -P
-  )
+  local canonical
+
+  canonical="$(cd -- "$1" 2>/dev/null && pwd -P)" || return 1
+  printf '%s\n' "${canonical}"
 }
 
 ## @fn __adrctl_dir_has_project_marker()

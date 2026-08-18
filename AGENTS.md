@@ -19,9 +19,18 @@ workflows where practical while improving configuration safety, filesystem
 preflight, build/release discipline, documentation, test coverage, and
 maintainability.
 
-The canonical product and installed command identity is `adrctl`.  The generated
-distribution artifact is `dist/adrctl.bash`, and the same bytes must also work
-when installed as `adrctl` or reached through an `adr` symbolic link.
+The canonical product and installed command identity is `adrctl`.  The build
+produces three executable representations of the same product:
+
+```text
+dist/adrctl.dev.bash
+dist/adrctl.bash
+dist/adrctl.min.bash
+```
+
+`adrctl.bash` is the standard/default distribution flavor.  The same product
+behavior must also work from the development and minified flavors, when installed
+as `adrctl`, or when reached through an `adr` symbolic link.
 
 The project is licensed under CC0 1.0 Universal.
 
@@ -46,24 +55,36 @@ explicitly accepts them.
 Preserve these boundaries unless a later ADR intentionally changes them:
 
 - Bash 4.3+ is the minimum runtime.
-- Maintained source is modular and assembled into one generated executable.
-- The canonical generated artifact is `dist/adrctl.bash` under ADR-019.
+- Maintained source is modular and assembled into three generated representations
+  of one executable implementation.
+- `dist/adrctl.bash` remains the standard/default generated artifact under
+  ADR-019 and ADR-022.
+- `dist/adrctl.dev.bash` retains comments from the assembled adrctl source and
+  embedded library inputs for inspection and debugging.
+- `dist/adrctl.bash` strips full-line comments from assembled implementation and
+  library inputs while retaining generated build-identification comments.
+- `dist/adrctl.min.bash` is produced by applying the pinned Bash-Minifier build
+  dependency to the completed standard artifact.
+- Each executable artifact has an adjacent `.256` SHA-256 check file.
 - The canonical installed command identity remains `adrctl`.
-- The final artifact has one effective product entrypoint owned by `adrctl`.
+- Every generated executable has one effective product entrypoint owned by
+  `adrctl`.
 - Invocation through an `adr` symlink is a supported compatibility path.
-- Supported subcommands are built into the repository and generated artifact.
+- Supported subcommands are built into the repository and generated artifacts.
 - External `adr-*` or `adrctl-*` plugin discovery is not supported initially.
 - Project configuration is data and is never sourced or evaluated.
 - `mktext` performs textual substitution only; `adrctl` owns ADR-specific value
   acquisition and transformation.
 - The Makefile directly bootstraps only the pinned `bashdeps.bash` build tool.
-- Ordinary external build/development artifacts, including `mktext.bash` and the
-  Bash Doxygen filter, are declared in `dependencies.txt` and synchronized by
-  bashdeps under ADR-021.
+- Ordinary external build/development artifacts, including `mktext.bash`, the
+  Bash Doxygen filter, and Bash-Minifier, are declared in `dependencies.txt` and
+  synchronized by bashdeps under ADR-021 and ADR-022.
 - `make build` consumes already-prepared dependency state and does not acquire or
   verify external dependencies.
 - `make all` is the fresh-checkout convenience path that synchronizes dependencies
   before building.
+- Bash-Minifier is a build-time transformation tool and is not embedded into
+  adrctl runtime artifacts.
 - The embedded renderer adds no runtime network dependency.
 - Multi-file mutations preflight the complete intended change before writing.
 - Existing files use atomic per-file replacement where practical.
@@ -153,16 +174,19 @@ Build dependency management:
 - the Makefile pins and independently verifies the released `bashdeps.bash`
   bootstrap artifact;
 - `dependencies.txt` pins the `mktext.bash` artifact embedded into adrctl;
-- `dependencies.txt` also pins `doxygen-bash.awk` for reference documentation;
-- exact current versions, immutable URLs, and SHA-256 digests SHALL be read from
-  the Makefile and `dependencies.txt` rather than duplicated in this guidance.
+- `dependencies.txt` pins `doxygen-bash.awk` for reference documentation;
+- `dependencies.txt` pins the commit-specific Bash-Minifier `Minify.sh` bytes as
+  `vendor/bash-minifier.bash` for the minified distribution transformation; and
+- exact current versions, immutable URLs, commits, and SHA-256 digests SHALL be
+  read from the Makefile and `dependencies.txt` rather than duplicated in this
+  guidance.
 
 ## Source and Build Boundaries
 
 Treat maintained source under `src/` and `lib/` as the implementation source of
 truth once those directories exist.
 
-Do not edit `dist/adrctl.bash` as though it were maintained source.
+Do not edit generated files under `dist/` as though they were maintained source.
 
 The Makefile must enumerate maintained build inputs explicitly.  Do not replace
 explicit source order with implicit plugin/module discovery.
@@ -186,12 +210,45 @@ It builds only from current local inputs.  `make all` explicitly sequences
 `make deps` followed by `make build` for callers that want a prepared fresh-checkout
 path.
 
-The build assembles one self-contained executable, injects immutable version/build
-metadata, and embeds the manifest-managed `mktext.bash` artifact unchanged.
+A successful `make build` produces:
 
-Do not strip, rewrite, patch, or textually transform the pinned `mktext` artifact
-inside the `adrctl` build.  If the dependency cannot be embedded unchanged, treat
-that as a dependency/architecture problem and resolve it explicitly.
+```text
+dist/adrctl.dev.bash
+dist/adrctl.bash
+dist/adrctl.min.bash
+dist/adrctl.dev.bash.256
+dist/adrctl.bash.256
+dist/adrctl.min.bash.256
+```
+
+The build injects immutable version/build metadata into the development and
+standard assemblies.  The development flavor embeds the manifest-managed
+`mktext.bash` artifact as supplied.  The standard flavor removes full-line
+comments from all assembled implementation/library inputs, including the embedded
+mktext representation.  The minified flavor is produced from that completed
+standard artifact by the manifest-managed Bash-Minifier.
+
+Generated build-identification comments remain in the development and standard
+artifacts.  They are build provenance rather than comments inherited from an
+assembled source/library input.
+
+The development flavor does not reconstruct comments already removed by an
+upstream dependency's own release packaging.
+
+Do not rewrite, patch, or semantically modify the prepared `mktext` implementation
+inside adrctl assembly.  ADR-022 permits only the representation transformations
+that define the flavors: full-line comment removal for the standard artifact and
+whole-file minification downstream of the standard artifact.
+
+Bash-Minifier is applied after the standard artifact is assembled.  Do not build a
+second minified implementation directly from maintained source or allow
+minification to replace the project's explicit comment-stripping boundary.
+
+If the pinned Bash-Minifier fails to preserve a valid Bash construct, a
+semantics-preserving adrctl source expression that the minifier supports may be
+used when it remains readable, documented, and validated across all three
+artifacts.  Do not locally patch the pinned minifier bytes to hide an integration
+problem.
 
 Release versions come from the release workflow and are passed into Make.  Make
 does not independently invent a release version.
@@ -294,7 +351,7 @@ Documentation-only requests must preserve executable behavior exactly.
 
 ## Documentation Standards
 
-Follow ADR-017, ADR-018, ADR-020, and ADR-021.
+Follow ADR-017, ADR-018, ADR-020, ADR-021, and ADR-022.
 
 Hand-maintained Bash uses Doxygen-compatible documentation comments.
 
@@ -327,8 +384,8 @@ For a behavioral or architectural change:
 3. add or update observable-behavior tests;
 4. synchronize required external inputs explicitly when build/test work needs
    them;
-5. build and test the literal generated artifact when consumer behavior can be
-   affected;
+5. build and test every literal generated executable flavor when consumer behavior
+   can be affected;
 6. test through the `adr` symlink when invocation identity can be affected; and
 7. review the complete diff for architecture, compatibility, and documentation
    drift.
@@ -354,7 +411,7 @@ Prefer observable behavior:
 - generated reports;
 - configuration precedence;
 - dependency synchronization and verification; and
-- literal execution of `dist/adrctl.bash`.
+- literal execution of each generated distribution flavor.
 
 Do not couple tests to private helper names merely because they are convenient to
 call.
@@ -365,11 +422,12 @@ all documented intentional deviations.
 Every behavior-affecting fix should add or update a regression test that would
 have caught the defect.
 
-The generated artifact must be tested directly.  Valid source modules do not prove
-that concatenation order, embedded dependency behavior, metadata injection,
-permissions, or the `adr` symlink path are correct.
+All three generated executable artifacts must be tested directly.  Valid source
+modules or one passing representation do not prove that concatenation order,
+comment stripping, minification, embedded dependency behavior, metadata
+injection, permissions, or the `adr` symlink path are correct in the others.
 
-Minimum-runtime testing must include Bash 4.3.
+Minimum-runtime testing must include Bash 4.3 for all three executable flavors.
 
 Build-boundary validation should also confirm that plain `make build` does not
 bootstrap or synchronize dependencies and that `make all` works from a fresh
@@ -384,33 +442,44 @@ Validation should include the applicable subset of:
 
 - dependency synchronization with `make deps`;
 - offline dependency verification with `make deps-check`;
-- Bash syntax validation;
+- Bash syntax validation for every distribution flavor;
 - static analysis;
 - formatting checks;
-- behavior tests;
+- behavior tests against every distribution flavor;
 - compatibility tests;
-- minimum-Bash tests;
+- minimum-Bash tests against every distribution flavor;
 - literal generated-artifact tests;
 - `adr` symlink tests;
 - generated documentation;
-- checksum validation; and
+- verification of all `.256` files; and
 - complete diff review.
 
 Report only validation actually performed.  Do not invent successful tool output.
 
 ## Release Discipline
 
-The release artifact is `dist/adrctl.bash`.
+Release artifacts are:
 
-Release acceptance concerns the exact artifact bytes that will be published.
+```text
+dist/adrctl.dev.bash
+dist/adrctl.bash
+dist/adrctl.min.bash
+dist/adrctl.dev.bash.256
+dist/adrctl.bash.256
+dist/adrctl.min.bash.256
+```
+
+Release acceptance concerns the exact bytes of all six files that will be
+published.
 
 The release workflow validates source and behavior, synchronizes and verifies the
-committed dependency manifest, builds the artifact with the chosen SemVer,
-validates the artifact, generates SHA-256, produces provenance attestation when
-supported, and publishes those exact bytes.
+committed dependency manifest, builds all three executable flavors with the chosen
+SemVer, validates each executable, verifies each SHA-256 check file, produces
+provenance attestation when supported, and publishes those exact bytes.
 
-Do not create a separately maintained `adr` executable.  Compatibility uses a
-symlink to the installed `adrctl` command.
+`adrctl.bash` remains the standard/default distribution.  Do not create a
+separately maintained `adr` executable.  Compatibility uses a symlink to the
+installed adrctl executable selected by the user.
 
 ## Common Failure Modes
 
@@ -418,13 +487,27 @@ Avoid:
 
 - copying `adr-tools` implementation code into the rewrite;
 - treating GPL-covered implementation expression as a shortcut to compatibility;
-- editing generated `dist/adrctl.bash` directly;
+- editing generated files under `dist/` directly;
 - reintroducing separate direct Makefile acquisition for manifest-managed
   dependencies;
+- downloading Bash-Minifier directly from Make instead of declaring it in
+  `dependencies.txt`;
+- tracking Bash-Minifier from a moving branch rather than an immutable commit and
+  digest;
 - making `make build` silently access the network or repair dependency state;
 - allowing `make deps-check` to bootstrap or mutate dependency state;
+- embedding Bash-Minifier into the runtime artifact;
+- generating the minified flavor independently from maintained source rather than
+  transforming the standard flavor;
+- preserving embedded-library comments in the standard flavor when the
+  whole-package stripping contract requires their removal;
+- applying transformations to embedded mktext beyond the ADR-022 representation
+  rules;
+- locally patching the pinned Bash-Minifier bytes to work around unsupported Bash
+  syntax;
+- publishing a transformed executable without running the consumer behavior suite
+  against that exact representation;
 - embedding an unverified or moving `mktext` dependency;
-- patching `mktext` during `adrctl` assembly;
 - allowing embedded `mktext` to claim the `adrctl` process entrypoint;
 - treating every `.env` as a project marker;
 - allowing `.env` to redirect its own project root;
@@ -439,7 +522,8 @@ Avoid:
 - automatically staging or committing Git changes;
 - requiring Graphviz merely to emit DOT;
 - adding external plugin discovery without a new architectural decision;
-- testing only source modules and assuming the assembled executable works;
+- testing only source modules or only one generated artifact and assuming every
+  released representation works;
 - inventing design rationale; and
 - silently expanding scope.
 

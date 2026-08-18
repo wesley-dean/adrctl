@@ -8,3 +8,4 @@
 
 id=wesley-dean/mktext@0.0.9 url=https://github.com/wesley-dean/mktext/releases/download/v0.0.9/mktext.bash dest=vendor/mktext.bash digest=sha256:b25cc84f733ccb8368f6cba98578ea7e266638cb61e794fc0028f16266cd336a
 id=wesley-dean/bash-doxygen@0.0.6 url=https://raw.githubusercontent.com/wesley-dean/bash-doxygen/v0.0.6/doxygen-bash.awk dest=vendor/doxygen-bash.awk digest=sha256:dc09bccac7cdb69940b2b34f0c2a92d862c5979d578364ec66782ac92338a3ea
+id=Zuzzuc/Bash-minifier@9c824e20815a5bca2153ec25ecc02a4edea1430e url=https://raw.githubusercontent.com/Zuzzuc/Bash-minifier/9c824e20815a5bca2153ec25ecc02a4edea1430e/Minify.sh dest=vendor/bash-minifier.bash digest=sha256:93cb422360db4cc410d19b068eb074da020a4a743f0eebc9c442d1e5acd90e9b

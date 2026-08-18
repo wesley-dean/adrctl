@@ -3,7 +3,7 @@
 set -eu
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
-adrctl="${repo_root}/dist/adrctl.bash"
+adrctl="${ADRCTL_ARTIFACT:-${repo_root}/dist/adrctl.bash}"
 work="/tmp/adrctl-bash43-$$"
 
 cleanup() {

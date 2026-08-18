@@ -17,7 +17,7 @@ concurrency:
   cancel-in-progress: true
 
 # Keep this workflow edit-sensitive during initial development so a deliberate
-# workflow change validates the current branch head through the literal artifact.
+# workflow change validates the current branch head through the literal artifacts.
 jobs:
   test:
     runs-on: ubuntu-24.04
@@ -39,6 +39,7 @@ jobs:
           grep -F 'Missing build dependency vendor/mktext.bash; run make deps or make all' build.stderr
           test ! -e vendor/bashdeps.bash
           test ! -e vendor/mktext.bash
+          test ! -e vendor/bash-minifier.bash
 
       - name: Synchronize project dependencies
         run: make deps
@@ -46,7 +47,7 @@ jobs:
       - name: Verify synchronized dependency state
         run: make deps-check
 
-      - name: Run source and generated-artifact validation
+      - name: Run source and all generated-artifact validation
         run: make check test
 
   bash-4-3:
@@ -55,16 +56,22 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # pin@v4
 
-      - name: Build compatibility artifact from a fresh dependency state
+      - name: Build compatibility artifacts from a fresh dependency state
         run: make all VERSION=0.0.0-ci
 
-      - name: Verify minimum Bash version
+      - name: Verify minimum Bash version for every distribution flavor
         run: |
-          docker run --rm \
-            --volume "${GITHUB_WORKSPACE}:/work:ro" \
-            --workdir /work \
-            bash:4.3 \
-            bash tests/compat-bash43.bash
+          for artifact in \
+            dist/adrctl.dev.bash \
+            dist/adrctl.bash \
+            dist/adrctl.min.bash; do
+            docker run --rm \
+              --env ADRCTL_ARTIFACT="/work/${artifact}" \
+              --volume "${GITHUB_WORKSPACE}:/work:ro" \
+              --workdir /work \
+              bash:4.3 \
+              bash tests/compat-bash43.bash
+          done
 
   docs:
     runs-on: ubuntu-24.04

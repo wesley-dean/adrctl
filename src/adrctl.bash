@@ -113,13 +113,13 @@ __adrctl_main() {
 
 ## @brief Transfers process ownership to adrctl only for supported executable names.
 ## @details
-## Sourcing maintained modules or the generated artifact does not dispatch a
-## command.  In the generated artifact, embedded `mktext` uses its own basename
-## guard and remains inert for `adrctl` and `adr`, leaving this as the one effective
-## product entrypoint.
+## Sourcing maintained modules or any generated distribution artifact does not
+## dispatch a command.  Embedded `mktext` uses its own basename guard and remains
+## inert for adrctl distribution names, leaving this as the one effective product
+## entrypoint.
 if [[ ${BASH_SOURCE[0]} == "$0" ]]; then
   case ${0##*/} in
-    adrctl | adr | adrctl.bash)
+    adrctl | adr | adrctl.bash | adrctl.dev.bash | adrctl.min.bash)
       if __adrctl_main "$@"; then
         exit 0
       else
