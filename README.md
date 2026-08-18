@@ -12,10 +12,12 @@ Records (ADRs).  It is a deliberate successor to
 workflows where practical while improving configuration safety, failure
 preflight, testing, documentation, and release discipline.
 
-The canonical product identity is `adrctl`.  The generated and released
-executable is named `adrctl.bash`.  The same generated artifact is designed to
-work through an `adr` symbolic link or alias for command-name compatibility with
-existing `adr-tools` habits and automation.
+The canonical product identity is `adrctl`.  The default generated and released
+executable is named `adrctl.bash`.  The same product is also released as a
+comment-preserving `adrctl.dev.bash` flavor and a compact `adrctl.min.bash`
+flavor.  Each generated executable is designed to work through an `adr` symbolic
+link or alias for command-name compatibility with existing `adr-tools` habits and
+automation.
 
 ## Status
 
@@ -36,19 +38,42 @@ Runtime requirements are intentionally small:
 
 Graph generation emits Graphviz DOT text and does not require Graphviz itself.
 Template rendering is provided by a verified `mktext` dependency embedded into
-the generated executable at build time, so normal runtime operation does not
+the generated executables at build time, so normal runtime operation does not
 fetch code from the network.
 
 ## Build
 
 The maintained implementation is modular Bash source under `lib/` and `src/`.
-Make assembles the exact consumer artifact:
+A successful build produces three executable distribution flavors and one
+adjacent SHA-256 check file for each:
 
 ```text
+dist/adrctl.dev.bash
 dist/adrctl.bash
+dist/adrctl.min.bash
+dist/adrctl.dev.bash.256
+dist/adrctl.bash.256
+dist/adrctl.min.bash.256
 ```
 
-From a fresh checkout, prepare the pinned dependencies and build the artifact with:
+The flavors share one implementation and one runtime contract:
+
+- `adrctl.dev.bash` preserves comments from the assembled adrctl source and
+  embedded library inputs and is intended for inspection and debugging;
+- `adrctl.bash` is the standard and recommended distribution, with full-line
+  comments stripped from the assembled implementation and library inputs; and
+- `adrctl.min.bash` is produced by applying a commit-pinned Bash-Minifier build
+  dependency to the completed standard artifact.
+
+Generated build-identification comments remain in the development and standard
+artifacts.  Bash-Minifier removes them from the compact representation together
+with other comments it encounters while minifying.
+
+The `.256` files use conventional SHA-256 check-file syntax and can be verified
+with `sha256sum -c` from the `dist/` directory.
+
+From a fresh checkout, prepare the pinned dependencies and build all six files
+with:
 
 ```bash
 make all
@@ -57,8 +82,8 @@ make all
 `make all` deliberately performs two ordered operations.  First, `make deps`
 bootstraps the pinned `vendor/bashdeps.bash` release artifact directly with
 `curl`, verifies its committed SHA-256 digest, and uses it to synchronize the
-project's `dependencies.txt`.  Bashdeps then materializes the current pinned
-`mktext` and Bash Doxygen artifacts under `vendor/`.  After dependency
+project's `dependencies.txt`.  Bashdeps then materializes the pinned `mktext`,
+Bash Doxygen, and Bash-Minifier artifacts under `vendor/`.  After dependency
 synchronization succeeds, `make all` runs `make build`.
 
 The current dependency boundary is:
@@ -70,13 +95,18 @@ Makefile
        -> vendor/bashdeps.bash sync dependencies.txt
             -> vendor/mktext.bash
             -> vendor/doxygen-bash.awk
+            -> vendor/bash-minifier.bash
   -> make build
+       -> dist/adrctl.dev.bash
        -> dist/adrctl.bash
+       -> dist/adrctl.min.bash
+       -> one .256 file for each executable
 ```
 
 The Makefile owns only the bootstrap version, URL, and digest for `bashdeps.bash`.
 Ordinary external dependency declarations live in `dependencies.txt`.  The
-current manifest pins `mktext` v0.0.9 and `bash-doxygen` v0.0.6.
+current manifest pins `mktext` v0.0.9, `bash-doxygen` v0.0.6, and Bash-Minifier's
+`Minify.sh` at an immutable upstream commit.
 
 The workflow may also be run explicitly:
 
@@ -91,27 +121,36 @@ state.  `make deps-check` verifies an already-present bashdeps bootstrap and all
 manifest-managed artifacts without downloading or repairing anything.
 
 Plain `make build` is intentionally network-free and dependency-management-free.
-It consumes the prepared `vendor/mktext.bash` bytes and fails with a diagnostic
-when that build input is absent.  Repeated builds therefore do not re-hash the
-complete dependency set merely because another build was requested.
+It consumes the prepared `vendor/mktext.bash` and `vendor/bash-minifier.bash`
+bytes and fails with a diagnostic when either required build input is absent.
+Repeated builds therefore do not re-hash the complete dependency set merely
+because another build was requested.
 
-The verified `mktext.bash` bytes are embedded unchanged into the generated
-`adrctl.bash` artifact.  `bashdeps.bash`, `dependencies.txt`, and the files under
-`vendor/` are build/development inputs and are not required at runtime.
+The development flavor embeds the prepared `mktext.bash` artifact as supplied.
+The standard flavor removes full-line comments from that embedded library along
+with comments from adrctl's own assembled modules, and the minified flavor then
+transforms the completed standard artifact.  Bash-Minifier is a build tool and is
+not embedded into adrctl.  `bashdeps.bash`, `dependencies.txt`, and the files
+under `vendor/` are build/development inputs and are not required at runtime.
 
-The generated artifact is build output rather than maintained source.  Do not
-edit `dist/adrctl.bash` directly.
+The generated artifacts are build output rather than maintained source.  Do not
+edit files under `dist/` directly.
 
 ## Installation
 
-The built or released executable is named `adrctl.bash`.  Install those bytes
-under that filename, for example:
+The standard built or released executable is named `adrctl.bash`.  Install those
+bytes under that filename, for example:
 
 ```bash
 install -m 0755 dist/adrctl.bash ~/.local/bin/adrctl.bash
 ```
 
-To retain the historical `adr` command name, create a symbolic link to that same
+Consumers who specifically need assembled source/library comments for inspection
+may choose `adrctl.dev.bash`; consumers who prefer the compact representation may
+choose `adrctl.min.bash`.  All three files are executable and expose the same
+adrctl command behavior.  `adrctl.bash` remains the recommended default.
+
+To retain the historical `adr` command name, create a symbolic link to the same
 installed executable:
 
 ```bash
@@ -121,16 +160,16 @@ ln -s adrctl.bash ~/.local/bin/adr
 ### Bash startup setup
 
 Interactive Bash users may instead add the following to `~/.bashrc`.  On shell
-startup, the helper installs the latest released `adrctl.bash` only when the
-configured path is missing or is not executable, verifies the published SHA-256
-digest before replacing the destination, and defines `adr` as an alias for the
-installed artifact.
+startup, the helper installs the latest released standard `adrctl.bash` only when
+the configured path is missing or is not executable, verifies the published
+SHA-256 digest before replacing the destination, and defines `adr` as an alias for
+the installed artifact.
 
 ```bash
 adrctl_setup() {
   local adr_path="${adr_path:-${HOME}/.local/bin/adrctl.bash}"
   local adr_url="${adr_url:-https://github.com/wesley-dean/adrctl/releases/latest/download/adrctl.bash}"
-  local checksum_url="${adr_url}.sha256"
+  local checksum_url="${adr_url}.256"
   local tmp_path
   local checksum_path
   local expected
@@ -142,7 +181,7 @@ adrctl_setup() {
     if ! tmp_path="$(mktemp "${adr_path}.tmp.XXXXXX")"; then
       return 1
     fi
-    checksum_path="${tmp_path}.sha256"
+    checksum_path="${tmp_path}.256"
 
     if ! curl -fsSL "${adr_url}" -o "${tmp_path}" ||
       ! curl -fsSL "${checksum_url}" -o "${checksum_path}"; then
@@ -194,17 +233,18 @@ path or release URL.  The helper intentionally does not replace an already
 executable installation on every shell startup; remove or replace that file when
 you deliberately want to acquire a newer release.
 
-Direct execution of `dist/adrctl.bash` is supported and presents the canonical
-`adrctl` product identity in help and diagnostics.
+Direct execution of `dist/adrctl.dev.bash`, `dist/adrctl.bash`, and
+`dist/adrctl.min.bash` is supported and presents the canonical `adrctl` product
+identity in help and diagnostics.
 
-`adrctl` remains the canonical product identity.  The `adrctl.bash` name
-identifies the generated distribution executable, while `adr` is a supported
-compatibility invocation alias rather than a separate executable implementation.
+`adrctl` remains the canonical product identity.  The distribution filenames
+identify generated representations, while `adr` is a supported compatibility
+invocation alias rather than a separate executable implementation.
 
 ## Commands
 
-The initial public command surface, when invoking the distributed executable
-directly, is:
+The initial public command surface, when invoking the standard distributed
+executable directly, is:
 
 ```text
 adrctl.bash init [DIRECTORY]
@@ -217,8 +257,9 @@ adrctl.bash help [COMMAND [SUBCOMMAND...]]
 adrctl.bash --version
 ```
 
-The same commands work with `adr` substituted for `adrctl.bash` when using the
-supported symbolic link or Bash alias.
+The same command surface is provided by the development and minified flavors.
+The same commands also work with `adr` substituted for the distribution filename
+when using the supported symbolic link or Bash alias.
 
 ### Initialize a repository
 
@@ -435,16 +476,17 @@ make distclean
 
 `make all` is the fresh-checkout convenience path: synchronize approved
 dependencies and then build.  `make build` assumes dependency state has already
-been prepared.  `make deps-check` provides the corresponding network-free
-integrity check.
+been prepared and produces all three executable flavors plus their `.256` files.
+`make deps-check` provides the corresponding network-free integrity check.
 
 `make docs` synchronizes the manifest-managed Bash Doxygen filter before
 regenerating `doc/reference/`; the generated reference tree remains ignored by
 Git.
 
-The behavior suite exercises the generated artifact rather than assuming that
-valid individual source modules imply a valid assembled executable.  CI also runs
-a consumer harness under Bash 4.3.
+The behavior suite exercises all three generated executable artifacts rather
+than assuming that valid individual source modules or one generated
+representation imply valid behavior in the others.  CI also runs each flavor
+through the consumer harness under Bash 4.3.
 
 ## Documentation
 
@@ -463,14 +505,18 @@ The initial architecture and compatibility analysis is also retained under
 
 ## Release Model
 
-Releases use Semantic Versioning and publish one canonical `adrctl.bash`
-distribution artifact.  The product identity remains `adrctl`; README command
-examples use the released `adrctl.bash` filename unless demonstrating the
-supported `adr` compatibility invocation.
+Releases use Semantic Versioning and publish three executable representations of
+one adrctl implementation: `adrctl.dev.bash`, the default `adrctl.bash`, and
+`adrctl.min.bash`.  Each executable is accompanied by an adjacent `.256` SHA-256
+check file, for six release files in total.  The product identity remains
+`adrctl`; README command examples use the standard released `adrctl.bash` filename
+unless demonstrating another distribution flavor or the supported `adr`
+compatibility invocation.
 
 Release validation synchronizes and verifies the committed dependency manifest
-before building and testing the exact artifact, generates a SHA-256 checksum, and
-produces GitHub provenance attestation when supported by the release platform.
+before building and testing all three exact executable artifacts, verifies all
+three SHA-256 check files, and produces GitHub provenance attestation for the six
+published files when supported by the release platform.
 
 ## License
 

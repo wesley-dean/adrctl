@@ -2,7 +2,7 @@
 
 setup() {
   REPO_ROOT="$(cd "${BATS_TEST_DIRNAME}/.." && pwd -P)"
-  ADRCTL="${REPO_ROOT}/dist/adrctl.bash"
+  ADRCTL="${ADRCTL_ARTIFACT:-${REPO_ROOT}/dist/adrctl.bash}"
   WORK="${BATS_TEST_TMPDIR}/project"
   mkdir -p "${WORK}"
 
@@ -74,7 +74,7 @@ EOF
   [[ "${output}" == *$'\ncommit='* ]]
 }
 
-@test "direct adrctl.bash help normalizes to canonical adrctl presentation" {
+@test "direct distribution artifact help normalizes to canonical adrctl presentation" {
   run env ADR_PAGER=cat "${ADRCTL}" help
 
   [ "${status}" -eq 0 ]
@@ -108,7 +108,7 @@ EOF
   [[ "${output}" == Usage:\ adr\ * ]]
 }
 
-@test "shell alias adr can invoke adrctl.bash with canonical presentation" {
+@test "shell alias adr can invoke a distribution artifact with canonical presentation" {
   cat >"${WORK}/alias-test.bash" <<EOF
 shopt -s expand_aliases
 alias adr='${ADRCTL}'

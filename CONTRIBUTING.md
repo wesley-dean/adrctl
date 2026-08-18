@@ -25,7 +25,7 @@ For a public behavior or architectural change, the normal sequence is:
 1. establish or update the documented intent;
 2. implement the smallest coherent change;
 3. add or update observable-behavior tests;
-4. build and validate the generated `dist/adrctl.bash` artifact;
+4. build and validate all generated distribution artifacts;
 5. exercise the installed `adrctl`, `adr` symlink, or shell-alias path when
    invocation identity is relevant; and
 6. review the complete diff for compatibility and documentation drift.
@@ -63,6 +63,9 @@ Make is the canonical local orchestration surface.
 Useful targets include:
 
 ```bash
+make all
+make deps
+make deps-check
 make build
 make check
 make test
@@ -73,8 +76,29 @@ make docs-clean
 make checksums
 ```
 
-The generated artifact is `dist/adrctl.bash`.  It is build output, not maintained
-source, and should not be edited directly.
+A successful `make build` produces three executable flavors and three adjacent
+SHA-256 check files:
+
+```text
+dist/adrctl.dev.bash
+dist/adrctl.bash
+dist/adrctl.min.bash
+dist/adrctl.dev.bash.256
+dist/adrctl.bash.256
+dist/adrctl.min.bash.256
+```
+
+The development flavor retains maintained adrctl comments, `adrctl.bash` is the
+standard comment-stripped distribution, and the minified flavor is produced from
+the standard artifact by the manifest-managed Bash-Minifier.  These files are
+build output, not maintained source, and should not be edited directly.
+
+`make build` is network-free and expects dependency state to have been prepared.
+Use `make all` from a fresh checkout or run `make deps build` explicitly.
+
+The behavior and minimum-Bash suites validate all three executable flavors.  A
+passing standard artifact does not by itself establish that the development or
+minified representation is safe to release.
 
 Doxygen reference documentation under `doc/reference/` is also generated output.
 It is ignored by Git, regenerated with `make docs`, and published to GitHub Pages
@@ -82,7 +106,7 @@ by the documentation workflow rather than committed to the repository.
 
 Tests should prefer observable behavior such as command arguments, standard
 streams, exit status, generated files, filesystem effects, reports, project
-configuration, and literal execution of the generated artifact.
+configuration, and literal execution of the generated artifacts.
 
 ## Architecture changes
 
