@@ -73,6 +73,15 @@ Preserve these boundaries unless a later ADR intentionally changes them:
 - Supported subcommands are built into the repository and generated artifacts.
 - External `adr-*` or `adrctl-*` plugin discovery is not supported initially.
 - Project configuration is data and is never sourced or evaluated.
+- ADR filename creation, ADR candidate selection, and logical-number extraction
+  are separate concerns under ADR-023.
+- `ADRCTL_ADR_GLOB` selects candidate basenames; it does not itself establish that
+  a file is a managed ADR.
+- `ADRCTL_ADR_NUMBER_REGEX` recognizes managed ADR basenames and capture group 1
+  contains the complete logical decimal ADR number.
+- `new` and `init` must preflight rendered filenames against the effective glob
+  and number regex so adrctl never knowingly creates an ADR that subsequent
+  discovery would ignore or assign a different logical number.
 - `mktext` performs textual substitution only; `adrctl` owns ADR-specific value
   acquisition and transformation.
 - The Makefile directly bootstraps only the pinned `bashdeps.bash` build tool.
@@ -267,7 +276,7 @@ Do not source `.env`, `.adr-dir`, templates, ADR documents, replacement values, 
 Quote expansions deliberately.
 
 Treat template text, configuration values, titles, relationship text, ADR
-contents, and dependency-manifest fields as data.
+contents, dependency-manifest fields, candidate globs, and number regexes as data.
 
 Prefer Bash builtins when they implement the behavior clearly and safely on Bash
 4.3.  Use ordinary Unix commands where they make the implementation more obvious
@@ -299,10 +308,58 @@ Configuration must be parsed as data with the exact grammar defined by the
 specification.  Do not add shell expansion, command substitution, or escape
 processing as convenience features.
 
+`ADRCTL_ADR_GLOB` and `ADRCTL_ADR_NUMBER_REGEX` are project-scoped discovery
+settings.  Their precedence is process environment, project `.env`, then built-in
+default; no command-line forms exist initially.
+
+Apply `ADRCTL_ADR_GLOB` only to immediate basenames within the effective ADR
+directory.  Do not use it to introduce recursive discovery or path traversal.
+
+Apply `ADRCTL_ADR_NUMBER_REGEX` with Bash ERE matching.  Capture group 1 is the
+complete logical decimal number.  Do not guess another capture group, infer the
+first digit run after a configured match, or derive the number from document body
+content.
+
+Never apply either configured discovery value through `eval`, `source`, command
+construction, or another execution mechanism.
+
 Relative project paths resolve against `PROJECT_ROOT`, not the caller's incidental
 nested cwd.
 
 Preserve `.adr-dir` compatibility until a later accepted decision changes it.
+
+## ADR Discovery and Numbering Rules
+
+Treat ADR discovery as one shared pipeline:
+
+```text
+ADR directory
+  -> ADRCTL_ADR_GLOB candidate selection
+  -> ADRCTL_ADR_NUMBER_REGEX validation + capture group 1
+  -> logical ADR records
+```
+
+All collection-driven behavior must consume that same logical record set,
+including listing, numeric and partial reference resolution, next-number
+allocation, TOC generation, graph generation, and repository upgrades.
+
+Preserve numeric ordering by captured logical number with basename ordering as the
+stable tie-breaker for duplicate logical numbers.
+
+A candidate that matches the glob but not the number regex is unrelated and is
+ignored.  A configured regex that is invalid, or that matches a candidate without
+a decimal capture group 1, is a configuration-contract failure and must not be
+silently interpreted another way.
+
+Filename creation is a separate surface.  After rendering a new basename and
+before publication, verify that the basename matches the effective candidate glob,
+matches the effective number regex, and captures the exact number adrctl assigned.
+Do not allow `new` or `init` to create an ADR that the next discovery operation
+would lose or renumber.
+
+Do not derive persistent discovery solely from a transient `--filename-pattern`
+option.  The default discovery settings are intentionally broad enough to
+recognize common prefixed forms such as `ADR-0001-title.md`.
 
 ## Rendering Rules
 
@@ -351,7 +408,7 @@ Documentation-only requests must preserve executable behavior exactly.
 
 ## Documentation Standards
 
-Follow ADR-017, ADR-018, ADR-020, ADR-021, and ADR-022.
+Follow ADR-017, ADR-018, ADR-020, ADR-021, ADR-022, and ADR-023.
 
 Hand-maintained Bash uses Doxygen-compatible documentation comments.
 
@@ -410,6 +467,8 @@ Prefer observable behavior:
 - editor/pager invocation boundaries;
 - generated reports;
 - configuration precedence;
+- ADR candidate selection and logical-number extraction;
+- creation rediscoverability preflight;
 - dependency synchronization and verification; and
 - literal execution of each generated distribution flavor.
 
@@ -511,8 +570,16 @@ Avoid:
 - allowing embedded `mktext` to claim the `adrctl` process entrypoint;
 - treating every `.env` as a project marker;
 - allowing `.env` to redirect its own project root;
-- evaluating configuration or templates as shell code;
+- evaluating configuration, templates, ADR globs, or ADR number regexes as shell
+  code;
 - silently ignoring unknown `ADRCTL_` project keys;
+- hard-coding another ADR filename prefix instead of using the ADR-023 discovery
+  contract;
+- deriving persistent discovery solely from a transient filename-creation pattern;
+- implementing different ADR-recognition logic for list, references, numbering,
+  reports, or upgrades;
+- creating an ADR filename that the effective discovery configuration cannot
+  rediscover as the same logical number;
 - choosing the first ambiguous ADR reference;
 - mutating one file before discovering that another required target is invalid;
 - claiming cross-file transactionality that the filesystem does not provide;
