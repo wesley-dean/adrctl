@@ -10,7 +10,7 @@ on:
 
 name: Tests
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: "${{ github.ref }}-${{ github.workflow }}"
@@ -19,51 +19,6 @@ concurrency:
 # Keep this workflow edit-sensitive during initial development so a deliberate
 # workflow change validates the current branch head through the literal artifacts.
 jobs:
-  patch-init-status:
-    if: github.ref_name == 'agent/configurable-adr-discovery-contract' || github.head_ref == 'agent/configurable-adr-discovery-contract'
-    runs-on: ubuntu-24.04
-    steps:
-      - name: Checkout feature branch
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # pin@v4
-        with:
-          ref: agent/configurable-adr-discovery-contract
-
-      - name: Apply focused init status fix
-        shell: bash
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-
-          path = Path('lib/commands.bash')
-          text = path.read_text()
-          old = '''  if ! __adrctl_render_filename __adrctl_local_context \\
-    "${__adrctl_local_filename_pattern}" __adrctl_local_filename; then
-    return $?
-  fi
-'''
-          new = '''  __adrctl_render_filename __adrctl_local_context \\
-    "${__adrctl_local_filename_pattern}" __adrctl_local_filename || return $?
-'''
-          if old not in text:
-              raise SystemExit(0)
-          if text.count(old) != 1:
-              raise SystemExit('expected exactly one init render block')
-          path.write_text(text.replace(old, new, 1))
-          PY
-
-      - name: Commit focused fix when needed
-        shell: bash
-        run: |
-          if git diff --quiet -- lib/commands.bash; then
-            exit 0
-          fi
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add lib/commands.bash
-          git diff --cached --check
-          git commit -m 'fix: preserve init preflight status'
-          git push origin HEAD:agent/configurable-adr-discovery-contract
-
   test:
     runs-on: ubuntu-24.04
     steps:
