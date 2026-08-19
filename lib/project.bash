@@ -58,6 +58,8 @@ __adrctl_match_adr_basename() {
 __adrctl_validate_adr_discovery_state() {
   local path
   local base
+  # Assigned indirectly by __adrctl_match_adr_basename through printf -v.
+  # shellcheck disable=SC2034
   local number
   local status
 
@@ -71,10 +73,7 @@ __adrctl_validate_adr_discovery_state() {
     base="${path##*/}"
 
     if __adrctl_match_adr_basename "${base}" number; then
-      # Referencing the output also documents that successful matches always
-      # produce a logical number, even though this validation pass only needs the
-      # match/capture contract.
-      [[ ${number} =~ ^[0-9]+$ ]] || return "${__adrctl_exit_usage}"
+      :
     else
       status=$?
       (( status == 1 )) || return "${status}"
