@@ -364,10 +364,12 @@ the current working directory instead of climbing to a Git ancestor.
 Project configuration lives in `.env` at the resolved project root and is parsed
 as data.  It is never sourced or evaluated as shell code.
 
-Initial project keys are:
+Project keys include:
 
 ```text
 ADRCTL_ADR_DIR
+ADRCTL_ADR_GLOB
+ADRCTL_ADR_NUMBER_REGEX
 ADRCTL_TEMPLATE
 ADRCTL_FILENAME_PATTERN
 ADRCTL_TEMPLATE_START_DELIMITER
@@ -386,6 +388,10 @@ project .env
 compatible legacy metadata
 built-in default
 ```
+
+`ADRCTL_ADR_GLOB` and `ADRCTL_ADR_NUMBER_REGEX` currently have no command-line
+forms.  Their effective precedence is process environment, project `.env`, then
+the built-in default.
 
 Relative configured paths resolve against the project root.
 
@@ -432,6 +438,53 @@ Filename patterns are a separate rendering surface and retain the stable braced
 ```text
 {NUMBER4}-{TITLE_SLUG}.md
 ```
+
+### ADR discovery and logical numbering
+
+Filename creation and filename discovery are separate concerns.  The default
+discovery settings are:
+
+```text
+ADRCTL_ADR_GLOB=*.md
+ADRCTL_ADR_NUMBER_REGEX=^[^0-9]*([0-9]+)-.+\.md$
+```
+
+`ADRCTL_ADR_GLOB` selects candidate basenames immediately within the configured
+ADR directory.  `ADRCTL_ADR_NUMBER_REGEX` then determines whether a candidate is
+a managed ADR; capture group 1 contains the complete logical decimal ADR number.
+
+The defaults recognize the established form and common prefixed variants, for
+example:
+
+```text
+0001-use-postgresql.md
+ADR-0001-use-postgresql.md
+decision-0001-use-postgresql.md
+```
+
+A project that keeps unrelated Markdown files alongside ADRs can narrow the
+candidate set:
+
+```text
+ADRCTL_ADR_GLOB=ADR-*.md
+```
+
+A project with a different numbering convention can define its own Bash ERE.  For
+example:
+
+```text
+ADRCTL_ADR_GLOB=ADR_*.md
+ADRCTL_ADR_NUMBER_REGEX=^ADR_([0-9]+)_.+\.md$
+```
+
+Both values are parsed and matched as inert data.  They are never sourced or
+passed through `eval`.
+
+A filename rendered for `new` or `init` must satisfy the effective candidate glob
+and number regex before it is published, and the captured logical number must be
+the number adrctl assigned.  This prevents adrctl from creating an ADR that a
+later `list`, reference, numbering, TOC, or graph operation would immediately
+ignore.
 
 ## Safety and Compatibility
 

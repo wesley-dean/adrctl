@@ -2,36 +2,32 @@
 ## @brief Provides ADR file discovery, reference resolution, and bounded mutation.
 
 ## @fn __adrctl_file_number()
-## @brief Extracts the logical decimal number from one recognized ADR pathname.
+## @brief Extracts the logical decimal number from one managed ADR pathname.
 ## @param $1 ADR pathname.
 ## @param $2 Output variable for number.
-## @retval 0 A numeric prefix was extracted.
-## @retval 1 The basename is not a recognized ADR filename.
+## @retval 0 The basename is managed and a logical number was extracted.
+## @retval 1 The basename is not managed by the effective discovery contract.
+## @retval 2 The configured number regex violated its capture-group contract.
 __adrctl_file_number() {
   local base
-  local digits
 
   base="${1##*/}"
-  if [[ ! ${base} =~ ^([0-9]+)-.+\.md$ ]]; then
-    return 1
-  fi
-
-  digits="${BASH_REMATCH[1]}"
-  printf -v "$2" '%d' "$((10#${digits}))"
+  __adrctl_match_adr_basename "${base}" "$2"
 }
 
 ## @fn __adrctl_collect_adrs()
-## @brief Collects recognized ADR files in numeric order with basename tie-break.
+## @brief Collects managed ADR files in numeric order with basename tie-break.
 ## @param $1 Output array variable name.
 ## @retval 0 Collection completed, including when the directory is absent.
+## @retval 2 A candidate exposed an invalid number-regex capture contract.
 __adrctl_collect_adrs() {
   local -n output_ref="$1"
   local path
-  local base
   local i
   local j
   local left_number
   local right_number
+  local status
   local swap
 
   output_ref=()
@@ -40,18 +36,25 @@ __adrctl_collect_adrs() {
   # shellcheck disable=SC2154
   [[ -d ${__adrctl_adr_dir} ]] || return 0
 
-  for path in "${__adrctl_adr_dir}"/*.md; do
-    [[ -e ${path} ]] || continue
-    base="${path##*/}"
-    [[ ${base} =~ ^[0-9]+-.+\.md$ ]] || continue
-    output_ref+=("${path}")
+  for path in \
+    "${__adrctl_adr_dir}"/* \
+    "${__adrctl_adr_dir}"/.[!.]* \
+    "${__adrctl_adr_dir}"/..?*; do
+    [[ -f ${path} ]] || continue
+
+    if __adrctl_file_number "${path}" left_number; then
+      output_ref+=("${path}")
+    else
+      status=$?
+      (( status == 1 )) || return "${status}"
+    fi
   done
 
   for (( i = 1; i < ${#output_ref[@]}; i++ )); do
     j="${i}"
     while (( j > 0 )); do
-      __adrctl_file_number "${output_ref[j-1]}" left_number || break
-      __adrctl_file_number "${output_ref[j]}" right_number || break
+      __adrctl_file_number "${output_ref[j-1]}" left_number || return $?
+      __adrctl_file_number "${output_ref[j]}" right_number || return $?
 
       if (( left_number < right_number )); then
         break
@@ -70,9 +73,10 @@ __adrctl_collect_adrs() {
 }
 
 ## @fn __adrctl_next_number()
-## @brief Computes one greater than the greatest recognized ADR number.
+## @brief Computes one greater than the greatest managed ADR number.
 ## @param $1 Output variable for next number.
 ## @retval 0 A candidate number was produced.
+## @retval 2 Discovery configuration is invalid for an existing candidate.
 __adrctl_next_number() {
   local -a scanned_files
   local scanned_number
@@ -82,9 +86,9 @@ __adrctl_next_number() {
   declare -a scanned_files=()
   maximum_number=0
 
-  __adrctl_collect_adrs scanned_files
+  __adrctl_collect_adrs scanned_files || return $?
   for scanned_path in "${scanned_files[@]}"; do
-    __adrctl_file_number "${scanned_path}" scanned_number || continue
+    __adrctl_file_number "${scanned_path}" scanned_number || return $?
     (( scanned_number > maximum_number )) && maximum_number="${scanned_number}"
   done
 
@@ -158,6 +162,7 @@ __adrctl_display_path() {
 ## @param $2 Output variable for absolute ADR pathname.
 ## @retval 0 One ADR was resolved.
 ## @retval 1 No match or an ambiguous match exists.
+## @retval 2 Discovery configuration is invalid for an existing candidate.
 __adrctl_resolve_reference() {
   local reference
   local reference_base
@@ -173,7 +178,7 @@ __adrctl_resolve_reference() {
   declare -a files=()
   declare -a matches=()
 
-  __adrctl_collect_adrs files
+  __adrctl_collect_adrs files || return $?
 
   for path in "${files[@]}"; do
     base="${path##*/}"
@@ -186,7 +191,7 @@ __adrctl_resolve_reference() {
   if [[ ${reference_base} =~ ^[0-9]+$ ]]; then
     wanted_number=$((10#${reference_base}))
     for path in "${files[@]}"; do
-      __adrctl_file_number "${path}" number || continue
+      __adrctl_file_number "${path}" number || return $?
       (( number == wanted_number )) && matches+=("${path}")
     done
   else

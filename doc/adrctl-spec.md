@@ -277,12 +277,14 @@ An unknown `ADRCTL_` project key SHALL fail with status 2.
 `ADRCTL_PROJECT_ROOT` is valid only as process-environment/CLI input.  If it is
 present in project `.env`, configuration validation SHALL fail with status 2.
 
-### Initial project keys
+### Project keys
 
 Project `.env` supports:
 
 ```text
 ADRCTL_ADR_DIR
+ADRCTL_ADR_GLOB
+ADRCTL_ADR_NUMBER_REGEX
 ADRCTL_TEMPLATE
 ADRCTL_FILENAME_PATTERN
 ADRCTL_TEMPLATE_START_DELIMITER
@@ -317,6 +319,15 @@ built-in default
 ```
 
 Higher-precedence values replace lower-precedence values for the same setting.
+
+`ADRCTL_ADR_GLOB` and `ADRCTL_ADR_NUMBER_REGEX` have no command-line forms
+initially.  Their effective precedence is:
+
+```text
+process environment
+project .env
+built-in default
+```
 
 ## Path and ADR Directory Semantics
 
@@ -474,21 +485,85 @@ traversal.
 
 An empty or unsafe rendered basename SHALL fail before mutation.
 
-## ADR File Recognition, Ordering, and Numbering
+A rendered basename SHALL also satisfy the effective ADR discovery contract before
+publication.  The basename SHALL match the effective `ADRCTL_ADR_GLOB`, match the
+effective `ADRCTL_ADR_NUMBER_REGEX`, provide a decimal capture group 1, and yield
+the same logical number that adrctl assigned to the new ADR.
 
-A managed ADR filename has the conceptual form:
+A mismatch SHALL fail before visible filesystem mutation.  adrctl SHALL NOT create
+an ADR basename that its effective discovery configuration cannot subsequently
+recognize as the same logical ADR number.
+
+## ADR Candidate Selection and Logical Numbering
+
+ADR file discovery SHALL separate candidate selection from logical-number
+recognition.
+
+The built-in candidate glob is:
 
 ```text
-DIGITS-TEXT.md
+ADRCTL_ADR_GLOB=*.md
 ```
 
-where the leading digits form the logical ADR number.
+The glob applies to immediate basenames beneath the effective ADR directory.  It
+SHALL NOT introduce recursive discovery or path traversal.  An empty glob or a
+glob containing `/` is invalid configuration.
 
-Unrelated Markdown/filesystem entries that do not match the numbered ADR shape
-are ignored by listing and number allocation.
+The glob establishes candidacy only.  A candidate is a managed ADR only when its
+basename also satisfies the effective number regex.
 
-ADR ordering is numeric by logical number, with basename ordering as a stable
-tie-breaker for duplicate numeric prefixes.
+The built-in number regex is:
+
+```text
+ADRCTL_ADR_NUMBER_REGEX=^[^0-9]*([0-9]+)-.+\.md$
+```
+
+The regex uses Bash ERE semantics compatible with Bash 4.3.  Capture group 1 SHALL
+contain the complete logical decimal ADR number.
+
+The default therefore recognizes forms such as:
+
+```text
+0001-example.md
+ADR-0001-example.md
+decision-0001-example.md
+```
+
+A project MAY provide another number regex when its naming convention requires a
+different capture boundary.  For example:
+
+```text
+ADRCTL_ADR_NUMBER_REGEX=^decision-[0-9]{4}-([0-9]+)-.+\.md$
+```
+
+recognizes logical number 42 from:
+
+```text
+decision-2026-0042-use-postgresql.md
+```
+
+Both discovery settings SHALL remain inert configuration data.  adrctl SHALL NOT
+apply either value through `eval`, `source`, command construction, or another
+shell-execution mechanism.
+
+A syntactically invalid number regex SHALL fail configuration validation with
+status 2.
+
+When a candidate basename matches the configured regex, capture group 1 SHALL be
+present and SHALL contain decimal digits only.  A match without a decimal capture
+group 1 is a configuration-contract failure and SHALL NOT cause adrctl to infer a
+number from another substring or capture group.
+
+A candidate selected by the glob but rejected by the number regex is ignored as
+an unrelated file.
+
+All collection-driven commands SHALL consume the same managed ADR set produced by
+this candidate-selection and number-extraction pipeline.  This includes listing,
+reference resolution, next-number allocation, TOC generation, graph generation,
+and repository upgrades.
+
+ADR ordering is numeric by captured logical number, with basename ordering as a
+stable tie-breaker for duplicate logical numbers.
 
 A new ADR chooses one greater than the greatest recognized logical number.  When
 no recognized ADR exists, the first candidate number is 1.
@@ -508,8 +583,8 @@ Commands accepting an ADR reference SHALL support:
 
 An exact filename match wins over partial matching.
 
-A numeric reference matches the complete logical numeric prefix and ignores
-leading zeroes in the user reference.
+A numeric reference matches the complete captured logical number and ignores
+leading zeroes in the user reference and filename presentation.
 
 Zero matches SHALL fail with status 1.
 
@@ -553,8 +628,10 @@ reasonable validation before the first visible mutation.
 Preflight includes, as applicable:
 
 - project/configuration validation;
+- ADR candidate and number-regex validation;
 - ADR reference resolution;
 - destination validation;
+- filename rediscoverability validation;
 - template readability;
 - body/filename renderability;
 - required Markdown structure;
@@ -600,6 +677,9 @@ In an empty ADR directory, the default first pathname is compatible with:
 ```text
 0001-record-architecture-decisions.md
 ```
+
+The rendered initialization basename SHALL satisfy the effective ADR discovery
+contract before publication.
 
 An already-populated ADR directory SHALL NOT be silently reinitialized.
 
@@ -648,12 +728,14 @@ A successful command SHALL:
 2. resolve all `-s`/`-l` targets uniquely;
 3. allocate the candidate number;
 4. prepare context, filename, and body;
-5. prepare all reciprocal status/relationship changes;
-6. preflight the complete change set;
-7. publish the new file without overwriting a competing destination;
-8. replace prepared existing files using the mutation-safety contract;
-9. invoke the selected editor; and
-10. write the created ADR pathname to standard output.
+5. validate that the rendered basename is rediscoverable as the assigned logical
+   number under the effective candidate glob and number regex;
+6. prepare all reciprocal status/relationship changes;
+7. preflight the complete change set;
+8. publish the new file without overwriting a competing destination;
+9. replace prepared existing files using the mutation-safety contract;
+10. invoke the selected editor; and
+11. write the created ADR pathname to standard output.
 
 For each `-s TARGET`, compatibility relationship text is:
 
@@ -715,8 +797,8 @@ Invocation:
 adrctl list
 ```
 
-The command SHALL write one recognized ADR pathname per line to standard output in
-numeric ADR order.
+The command SHALL write one managed ADR pathname per line to standard output in
+logical numeric order.
 
 Paths are presented relative to the caller's cwd when possible, preserving the
 useful predecessor-style path surface from nested directories.
@@ -780,9 +862,9 @@ The report writes Markdown to standard output beginning with:
 ```
 
 Readable `INTRO_FILE` content is inserted after the heading and before ADR
-entries.  Each ADR entry is a Markdown bullet linking its title to its basename,
-optionally prefixed by `LINK_PREFIX`.  Readable `OUTRO_FILE` content follows the
-entries.
+entries.  Each managed ADR entry is a Markdown bullet linking its title to its
+basename, optionally prefixed by `LINK_PREFIX`.  Readable `OUTRO_FILE` content
+follows the entries.
 
 Intro/outro files SHALL be validated before report output begins where practical.
 
@@ -831,7 +913,7 @@ into:
 Date: YYYY-MM-DD
 ```
 
-for recognized ADR files.
+for managed ADR files selected through the common ADR discovery pipeline.
 
 Other lines are preserved.  Files already using ISO dates remain unchanged by a
 second run.  The command SHALL preflight/pre-render intended replacements and use
@@ -891,8 +973,9 @@ files, detected destination collisions, and external editor/pager failures that
 prevent successful completion.
 
 Status 2 examples include unknown commands/options, missing required arguments,
-malformed `-l` specifications, unknown `ADRCTL_` project keys, and invalid
-delimiter pairs.
+malformed `-l` specifications, unknown `ADRCTL_` project keys, invalid delimiter
+pairs, invalid ADR candidate globs, invalid ADR number regexes, and matched number
+regexes whose capture group 1 does not satisfy the decimal-number contract.
 
 Internal `mktext` statuses SHALL be translated into this public vocabulary.
 

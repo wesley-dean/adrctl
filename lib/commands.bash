@@ -337,10 +337,8 @@ __adrctl_command_init() {
   fi
 
   __adrctl_config_effective_filename_pattern __adrctl_local_filename_pattern
-  if ! __adrctl_render_filename __adrctl_local_context \
-    "${__adrctl_local_filename_pattern}" __adrctl_local_filename; then
-    return $?
-  fi
+  __adrctl_render_filename __adrctl_local_context \
+    "${__adrctl_local_filename_pattern}" __adrctl_local_filename || return $?
 
   __adrctl_local_destination="${__adrctl_adr_dir}/${__adrctl_local_filename}"
   [[ ! -e ${__adrctl_local_destination} ]] || {

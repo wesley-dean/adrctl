@@ -3,6 +3,10 @@
 
 __adrctl_cfg_adr_dir=''
 __adrctl_cfg_adr_dir_set=0
+__adrctl_cfg_adr_glob=''
+__adrctl_cfg_adr_glob_set=0
+__adrctl_cfg_adr_number_regex=''
+__adrctl_cfg_adr_number_regex_set=0
 __adrctl_cfg_template=''
 __adrctl_cfg_template_set=0
 __adrctl_cfg_filename_pattern=''
@@ -17,6 +21,10 @@ __adrctl_cfg_end_delimiter_set=0
 __adrctl_config_reset() {
   __adrctl_cfg_adr_dir=''
   __adrctl_cfg_adr_dir_set=0
+  __adrctl_cfg_adr_glob=''
+  __adrctl_cfg_adr_glob_set=0
+  __adrctl_cfg_adr_number_regex=''
+  __adrctl_cfg_adr_number_regex_set=0
   __adrctl_cfg_template=''
   __adrctl_cfg_template_set=0
   __adrctl_cfg_filename_pattern=''
@@ -123,6 +131,14 @@ __adrctl_config_apply_project_assignment() {
       __adrctl_cfg_adr_dir="${value}"
       __adrctl_cfg_adr_dir_set=1
       ;;
+    ADRCTL_ADR_GLOB)
+      __adrctl_cfg_adr_glob="${value}"
+      __adrctl_cfg_adr_glob_set=1
+      ;;
+    ADRCTL_ADR_NUMBER_REGEX)
+      __adrctl_cfg_adr_number_regex="${value}"
+      __adrctl_cfg_adr_number_regex_set=1
+      ;;
     ADRCTL_TEMPLATE)
       __adrctl_cfg_template="${value}"
       __adrctl_cfg_template_set=1
@@ -195,6 +211,65 @@ __adrctl_config_validate_pair() {
     __adrctl_fail_usage "${source}: template delimiters must not contain newline characters"
     return $?
   fi
+}
+
+## @fn __adrctl_config_validate_adr_glob()
+## @brief Validates one basename-scoped ADR candidate glob.
+## @param $1 Glob value.
+## @param $2 Human-readable source.
+## @retval 0 The glob is a non-empty basename pattern.
+## @retval 2 The glob is empty or contains a path separator.
+__adrctl_config_validate_adr_glob() {
+  local value
+  local source
+
+  value="$1"
+  source="$2"
+
+  if [[ -z ${value} ]]; then
+    __adrctl_fail_usage "${source}: ADRCTL_ADR_GLOB must not be empty"
+    return $?
+  fi
+
+  if [[ ${value} == */* ]]; then
+    __adrctl_fail_usage "${source}: ADRCTL_ADR_GLOB must match one basename and must not contain /"
+    return $?
+  fi
+}
+
+## @fn __adrctl_config_validate_adr_number_regex()
+## @brief Validates one configured Bash ERE used for ADR number extraction.
+## @param $1 Regex value.
+## @param $2 Human-readable source.
+## @retval 0 The value is a non-empty syntactically valid Bash ERE.
+## @retval 2 The value is empty or syntactically invalid.
+__adrctl_config_validate_adr_number_regex() {
+  local value
+  local source
+  local status
+
+  value="$1"
+  source="$2"
+
+  if [[ -z ${value} ]]; then
+    __adrctl_fail_usage "${source}: ADRCTL_ADR_NUMBER_REGEX must not be empty"
+    return $?
+  fi
+
+  if [[ '' =~ ${value} ]]; then
+    status=0
+  else
+    # The conditional status distinguishes a valid non-match (1) from invalid ERE (2).
+    # shellcheck disable=SC2319
+    status=$?
+  fi
+
+  if (( status == 2 )); then
+    __adrctl_fail_usage "${source}: ADRCTL_ADR_NUMBER_REGEX is not a valid Bash ERE"
+    return $?
+  fi
+
+  return 0
 }
 
 ## @fn __adrctl_config_load_project_file()
@@ -273,6 +348,54 @@ __adrctl_config_effective_adr_dir_value() {
     printf -v "$1" '%s' ''
     printf -v "$2" '%s' 0
   fi
+}
+
+## @fn __adrctl_config_effective_adr_glob()
+## @brief Returns and validates the effective ADR candidate basename glob.
+## @param $1 Output variable.
+## @retval 0 A valid glob was returned.
+## @retval 2 The selected value is invalid configuration.
+__adrctl_config_effective_adr_glob() {
+  local value
+  local source
+
+  if [[ -v ADRCTL_ADR_GLOB ]]; then
+    value="${ADRCTL_ADR_GLOB}"
+    source='process environment'
+  elif (( __adrctl_cfg_adr_glob_set )); then
+    value="${__adrctl_cfg_adr_glob}"
+    source='project configuration'
+  else
+    value='*.md'
+    source='built-in default'
+  fi
+
+  __adrctl_config_validate_adr_glob "${value}" "${source}" || return $?
+  printf -v "$1" '%s' "${value}"
+}
+
+## @fn __adrctl_config_effective_adr_number_regex()
+## @brief Returns and validates the effective ADR logical-number Bash ERE.
+## @param $1 Output variable.
+## @retval 0 A valid regex was returned.
+## @retval 2 The selected value is invalid configuration.
+__adrctl_config_effective_adr_number_regex() {
+  local value
+  local source
+
+  if [[ -v ADRCTL_ADR_NUMBER_REGEX ]]; then
+    value="${ADRCTL_ADR_NUMBER_REGEX}"
+    source='process environment'
+  elif (( __adrctl_cfg_adr_number_regex_set )); then
+    value="${__adrctl_cfg_adr_number_regex}"
+    source='project configuration'
+  else
+    value='^[^0-9]*([0-9]+)-.+\.md$'
+    source='built-in default'
+  fi
+
+  __adrctl_config_validate_adr_number_regex "${value}" "${source}" || return $?
+  printf -v "$1" '%s' "${value}"
 }
 
 ## @fn __adrctl_config_effective_template_value()

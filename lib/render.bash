@@ -376,14 +376,17 @@ __adrctl_render_body_to_path() {
 }
 
 ## @fn __adrctl_render_filename()
-## @brief Renders and validates one ADR filename pattern using braced mktext syntax.
+## @brief Renders and preflights one ADR filename against discovery configuration.
 ## @param $1 Context variable name.
 ## @param $2 Filename pattern.
 ## @param $3 Output variable for rendered basename.
-## @retval 0 A safe basename was rendered.
+## @retval 0 A safe and rediscoverable basename was rendered.
 ## @retval 1 Rendering failed or produced an unsafe basename.
+## @retval 2 The rendered basename conflicts with ADR discovery configuration.
 __adrctl_render_filename() {
+  local -n context_ref="$1"
   local rendered
+  local expected_number
 
   if ! rendered="$(mktext render "$1" <<<"$2")"; then
     __adrctl_fail_operational 'failed to render ADR filename pattern'
@@ -394,6 +397,15 @@ __adrctl_render_filename() {
     __adrctl_fail_operational "filename pattern produced an unsafe basename: ${rendered}"
     return $?
   fi
+
+  expected_number="${context_ref[NUMBER]-}"
+  if [[ ! ${expected_number} =~ ^[0-9]+$ ]]; then
+    __adrctl_fail_operational 'ADR render context does not contain a valid logical NUMBER'
+    return $?
+  fi
+
+  __adrctl_validate_adr_discovery_state || return $?
+  __adrctl_validate_new_adr_basename "${rendered}" "${expected_number}" || return $?
 
   printf -v "$3" '%s' "${rendered}"
 }
