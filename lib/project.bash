@@ -32,7 +32,8 @@ __adrctl_match_adr_basename() {
     # shellcheck disable=SC2319
     regex_status=$?
     if (( regex_status == 2 )); then
-      __adrctl_fail_usage 'ADRCTL_ADR_NUMBER_REGEX became invalid during matching'
+      __adrctl_fail_usage \
+        "ADRCTL_ADR_NUMBER_REGEX became invalid during matching: ${__adrctl_adr_number_regex}"
       return $?
     fi
     return 1
@@ -40,7 +41,7 @@ __adrctl_match_adr_basename() {
 
   if [[ ! ${digits} =~ ^[0-9]+$ ]]; then
     __adrctl_fail_usage \
-      "ADRCTL_ADR_NUMBER_REGEX matched ${base} without decimal capture group 1"
+      "ADRCTL_ADR_NUMBER_REGEX='${__adrctl_adr_number_regex}' matched basename '${base}' without decimal capture group 1"
     return $?
   fi
 
@@ -100,7 +101,7 @@ __adrctl_validate_new_adr_basename() {
   # shellcheck disable=SC2053
   if [[ ${base} != ${__adrctl_adr_glob} ]]; then
     __adrctl_fail_usage \
-      "rendered ADR filename does not match ADRCTL_ADR_GLOB: ${base}"
+      "rendered ADR filename '${base}' does not match ADRCTL_ADR_GLOB='${__adrctl_adr_glob}'"
     return $?
   fi
 
@@ -110,7 +111,7 @@ __adrctl_validate_new_adr_basename() {
     status=$?
     if (( status == 1 )); then
       __adrctl_fail_usage \
-        "rendered ADR filename does not match ADRCTL_ADR_NUMBER_REGEX: ${base}"
+        "rendered ADR filename '${base}' does not match ADRCTL_ADR_NUMBER_REGEX='${__adrctl_adr_number_regex}'"
       return $?
     fi
     return "${status}"
@@ -118,7 +119,7 @@ __adrctl_validate_new_adr_basename() {
 
   if (( actual_number != expected_number )); then
     __adrctl_fail_usage \
-      "rendered ADR filename captures logical number ${actual_number}, expected ${expected_number}: ${base}"
+      "rendered ADR filename '${base}' captures logical number ${actual_number} from ADRCTL_ADR_NUMBER_REGEX='${__adrctl_adr_number_regex}', expected ${expected_number}"
     return $?
   fi
 }

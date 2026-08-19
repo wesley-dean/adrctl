@@ -494,6 +494,10 @@ A mismatch SHALL fail before visible filesystem mutation.  adrctl SHALL NOT crea
 an ADR basename that its effective discovery configuration cannot subsequently
 recognize as the same logical ADR number.
 
+A creation-time rediscoverability diagnostic SHALL identify the effective
+discovery surface that rejected or misinterpreted the rendered basename.  Exact
+diagnostic wording is not normative.
+
 ## ADR Candidate Selection and Logical Numbering
 
 ADR file discovery SHALL separate candidate selection from logical-number
