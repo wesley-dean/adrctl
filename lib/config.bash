@@ -259,6 +259,8 @@ __adrctl_config_validate_adr_number_regex() {
   if [[ '' =~ ${value} ]]; then
     status=0
   else
+    # The conditional status distinguishes a valid non-match (1) from invalid ERE (2).
+    # shellcheck disable=SC2319
     status=$?
   fi
 
