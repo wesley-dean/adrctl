@@ -257,10 +257,11 @@ __adrctl_config_validate_adr_number_regex() {
   fi
 
   if [[ '' =~ ${value} ]]; then
-    return 0
+    status=0
+  else
+    status=$?
   fi
 
-  status=$?
   if (( status == 2 )); then
     __adrctl_fail_usage "${source}: ADRCTL_ADR_NUMBER_REGEX is not a valid Bash ERE"
     return $?
