@@ -136,6 +136,19 @@ EOF
   [ "${output}" = 'doc/adr/ADR-0001-one.md' ]
 }
 
+@test "ordinary discovery silently ignores candidates rejected by the number regex" {
+  write_adr "${WORK}/doc/adr/ADR-0001-one.md" '1. One'
+  printf '%s\n' 'not an ADR' >"${WORK}/doc/adr/ADR-not-an-adr.md"
+
+  run run_in "${WORK}" env \
+    ADRCTL_ADR_GLOB='ADR-*.md' \
+    ADRCTL_ADR_NUMBER_REGEX='^ADR-([0-9]+)-.+\.md$' \
+    "${ADRCTL}" list
+
+  [ "${status}" -eq 0 ]
+  [ "${output}" = 'doc/adr/ADR-0001-one.md' ]
+}
+
 @test "project discovery settings work and process environment overrides both" {
   cat >"${WORK}/.env" <<'EOF'
 ADRCTL_ADR_GLOB=ADR_*.md
@@ -170,6 +183,20 @@ EOF
 
   [ "${status}" -eq 0 ]
   [ "${output}" = 'doc/adr/decision-2026-0043-next-decision.md' ]
+}
+
+@test "leading-zero captures normalize explicitly as decimal logical numbers" {
+  write_adr "${WORK}/doc/adr/ADR-0122-existing.md" '122. Existing'
+
+  run run_in "${WORK}" env \
+    ADRCTL_ADR_GLOB='ADR-*.md' \
+    ADRCTL_ADR_NUMBER_REGEX='^ADR-([0-9]+)-.+\.md$' \
+    ADRCTL_FILENAME_PATTERN='ADR-{NUMBER4}-{TITLE_SLUG}.md' \
+    "${ADRCTL}" new 'Example'
+
+  [ "${status}" -eq 0 ]
+  [ "${output}" = 'doc/adr/ADR-0123-example.md' ]
+  [ -f "${WORK}/doc/adr/ADR-0123-example.md" ]
 }
 
 @test "unrelated candidates are ignored and duplicate logical numbers use basename tie-break" {
@@ -217,6 +244,7 @@ EOF
 
   [ "${status}" -eq 2 ]
   [[ "${output}" == *'without decimal capture group 1'* ]]
+  [[ "${output}" == *"ADRCTL_ADR_NUMBER_REGEX='^ADR-[0-9]+-.+\\.md$'"* ]]
 
   write_adr "${WORK}/doc/adr/ADR-foo-two.md" '2. Two'
 
@@ -227,6 +255,21 @@ EOF
 
   [ "${status}" -eq 2 ]
   [[ "${output}" == *'without decimal capture group 1'* ]]
+}
+
+@test "creation identifies a missing decimal capture group contract" {
+  run run_in "${WORK}" env \
+    ADRCTL_ADR_GLOB='ADR-*.md' \
+    ADRCTL_ADR_NUMBER_REGEX='^ADR-[0-9]+-.+\.md$' \
+    "${ADRCTL}" new \
+    --filename-pattern 'ADR-{NUMBER4}-{TITLE_SLUG}.md' \
+    'Missing Capture'
+
+  [ "${status}" -eq 2 ]
+  [[ "${output}" == *"ADRCTL_ADR_NUMBER_REGEX='^ADR-[0-9]+-.+\\.md$'"* ]]
+  [[ "${output}" == *"basename 'ADR-0001-missing-capture.md'"* ]]
+  [[ "${output}" == *'without decimal capture group 1'* ]]
+  [ ! -d "${WORK}/doc/adr" ]
 }
 
 @test "malicious-looking discovery values remain inert data" {
@@ -251,7 +294,8 @@ EOF
   run run_in "${WORK}" "${ADRCTL}" new 'Invisible Decision'
 
   [ "${status}" -eq 2 ]
-  [[ "${output}" == *'does not match ADRCTL_ADR_GLOB'* ]]
+  [[ "${output}" == *"rendered ADR filename '0001-invisible-decision.md'"* ]]
+  [[ "${output}" == *"ADRCTL_ADR_GLOB='ADR-*.md'"* ]]
   [ ! -d "${WORK}/doc/adr" ]
 }
 
@@ -264,7 +308,8 @@ EOF
     'Regex Mismatch'
 
   [ "${status}" -eq 2 ]
-  [[ "${output}" == *'does not match ADRCTL_ADR_NUMBER_REGEX'* ]]
+  [[ "${output}" == *"rendered ADR filename 'ADR-0001-regex-mismatch.md'"* ]]
+  [[ "${output}" == *"ADRCTL_ADR_NUMBER_REGEX='^ADR_([0-9]+)_.+\\.md$'"* ]]
   [ ! -d "${WORK}/doc/adr" ]
 }
 
@@ -277,7 +322,10 @@ EOF
     'Wrong Number'
 
   [ "${status}" -eq 2 ]
-  [[ "${output}" == *'captures logical number 9999, expected 1'* ]]
+  [[ "${output}" == *"rendered ADR filename 'ADR-9999-0001-wrong-number.md'"* ]]
+  [[ "${output}" == *'captures logical number 9999'* ]]
+  [[ "${output}" == *"ADRCTL_ADR_NUMBER_REGEX='^ADR-([0-9]+)-[0-9]+-.+\\.md$'"* ]]
+  [[ "${output}" == *'expected 1'* ]]
   [ ! -d "${WORK}/doc/adr" ]
 }
 
@@ -287,6 +335,6 @@ EOF
   run run_in "${WORK}" "${ADRCTL}" init
 
   [ "${status}" -eq 2 ]
-  [[ "${output}" == *'does not match ADRCTL_ADR_GLOB'* ]]
+  [[ "${output}" == *"ADRCTL_ADR_GLOB='ADR-*.md'"* ]]
   [ ! -d "${WORK}/doc/adr" ]
 }
