@@ -3,6 +3,120 @@
 
 __adrctl_project_root=''
 __adrctl_adr_dir=''
+__adrctl_adr_glob='*.md'
+__adrctl_adr_number_regex='^[^0-9]*([0-9]+)-.+\.md$'
+
+## @fn __adrctl_match_adr_basename()
+## @brief Applies the effective candidate glob and number regex to one basename.
+## @param $1 Candidate basename.
+## @param $2 Output variable for normalized logical number.
+## @retval 0 The basename is a managed ADR and a number was returned.
+## @retval 1 The basename is not a managed ADR.
+## @retval 2 The configured regex matched without decimal capture group 1.
+__adrctl_match_adr_basename() {
+  local base
+  local digits
+  local regex_status
+
+  base="$1"
+
+  # The configured value is intentionally a Bash pattern, not a literal string.
+  # shellcheck disable=SC2053
+  [[ ${base} == ${__adrctl_adr_glob} ]] || return 1
+
+  if [[ ${base} =~ ${__adrctl_adr_number_regex} ]]; then
+    digits="${BASH_REMATCH[1]-}"
+  else
+    regex_status=$?
+    if (( regex_status == 2 )); then
+      __adrctl_fail_usage 'ADRCTL_ADR_NUMBER_REGEX became invalid during matching'
+      return $?
+    fi
+    return 1
+  fi
+
+  if [[ ! ${digits} =~ ^[0-9]+$ ]]; then
+    __adrctl_fail_usage \
+      "ADRCTL_ADR_NUMBER_REGEX matched ${base} without decimal capture group 1"
+    return $?
+  fi
+
+  printf -v "$2" '%d' "$((10#${digits}))"
+}
+
+## @fn __adrctl_validate_adr_discovery_state()
+## @brief Validates capture-group behavior for existing candidate files.
+## @details
+## Candidate files rejected by the number regex are unrelated and are ignored.
+## A candidate that matches the regex without decimal capture group 1 is invalid
+## configuration and fails before command-specific filesystem mutation begins.
+## @retval 0 Existing candidate state satisfies the discovery contract.
+## @retval 2 A candidate exposed an invalid capture-group contract.
+__adrctl_validate_adr_discovery_state() {
+  local path
+  local base
+  local number
+  local status
+
+  [[ -d ${__adrctl_adr_dir} ]] || return 0
+
+  for path in \
+    "${__adrctl_adr_dir}"/* \
+    "${__adrctl_adr_dir}"/.[!.]* \
+    "${__adrctl_adr_dir}"/..?*; do
+    [[ -f ${path} ]] || continue
+    base="${path##*/}"
+
+    if __adrctl_match_adr_basename "${base}" number; then
+      :
+    else
+      status=$?
+      (( status == 1 )) || return "${status}"
+    fi
+  done
+}
+
+## @fn __adrctl_validate_new_adr_basename()
+## @brief Ensures a rendered filename is rediscoverable as its assigned number.
+## @param $1 Rendered basename.
+## @param $2 Assigned logical ADR number.
+## @retval 0 The basename satisfies the effective discovery contract.
+## @retval 2 The basename would be ignored or assigned another logical number.
+__adrctl_validate_new_adr_basename() {
+  local base
+  local expected_number
+  local actual_number
+  local status
+
+  base="$1"
+  expected_number="$2"
+
+  # The configured value is intentionally a Bash pattern, not a literal string.
+  # shellcheck disable=SC2053
+  if [[ ${base} != ${__adrctl_adr_glob} ]]; then
+    __adrctl_fail_usage \
+      "rendered ADR filename does not match ADRCTL_ADR_GLOB: ${base}"
+    return $?
+  fi
+
+  if __adrctl_match_adr_basename "${base}" actual_number; then
+    :
+  else
+    status=$?
+    if (( status == 1 )); then
+      __adrctl_fail_usage \
+        "rendered ADR filename does not match ADRCTL_ADR_NUMBER_REGEX: ${base}"
+      return $?
+    fi
+    return "${status}"
+  fi
+
+  if (( actual_number != expected_number )); then
+    __adrctl_fail_usage \
+      "rendered ADR filename captures logical number ${actual_number}, expected ${expected_number}: ${base}"
+    return $?
+  fi
+}
 
 ## @fn __adrctl_canonical_existing_dir()
 ## @brief Canonicalizes an existing directory through Bash `cd` and `pwd -P`.
@@ -203,7 +317,7 @@ __adrctl_resolve_adr_dir() {
 }
 
 ## @fn __adrctl_load_project()
-## @brief Resolves project root, loads `.env`, and resolves ADR directory.
+## @brief Resolves project root, configuration, ADR directory, and discovery state.
 ## @param $1 Command mode: `existing` or `init`.
 ## @param $2 Explicit CLI project-root value.
 ## @param $3 Explicit CLI project-root presence flag (0/1).
@@ -224,4 +338,7 @@ __adrctl_load_project() {
 
   __adrctl_config_load_project_file "${__adrctl_project_root}/.env" || return $?
   __adrctl_resolve_adr_dir "${__adrctl_project_root}" __adrctl_adr_dir || return $?
+  __adrctl_config_effective_adr_glob __adrctl_adr_glob || return $?
+  __adrctl_config_effective_adr_number_regex __adrctl_adr_number_regex || return $?
+  __adrctl_validate_adr_discovery_state || return $?
 }
