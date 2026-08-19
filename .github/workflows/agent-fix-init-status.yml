@@ -1,0 +1,52 @@
+name: Agent fix init status
+
+on:
+  push:
+    branches:
+      - agent/configurable-adr-discovery-contract
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.event.head_commit.message != 'fix: preserve init preflight status'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: agent/configurable-adr-discovery-contract
+
+      - name: Apply focused source fix
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('lib/commands.bash')
+          text = path.read_text()
+          old = '''  if ! __adrctl_render_filename __adrctl_local_context \\
+    "${__adrctl_local_filename_pattern}" __adrctl_local_filename; then
+    return $?
+  fi
+'''
+          new = '''  __adrctl_render_filename __adrctl_local_context \\
+    "${__adrctl_local_filename_pattern}" __adrctl_local_filename || return $?
+'''
+          if old not in text:
+              raise SystemExit('expected init render block not found')
+          if text.count(old) != 1:
+              raise SystemExit('expected exactly one init render block')
+          path.write_text(text.replace(old, new, 1))
+          PY
+
+      - name: Commit focused fix
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add lib/commands.bash
+          git diff --cached --check
+          git commit -m 'fix: preserve init preflight status'
+          git push origin HEAD:agent/configurable-adr-discovery-contract
