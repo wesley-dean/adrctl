@@ -21,6 +21,7 @@ jobs:
       - name: Apply focused source fix
         shell: bash
         run: |
+          # This workflow exists only to apply one connector-constrained source edit.
           python3 - <<'PY'
           from pathlib import Path
 
