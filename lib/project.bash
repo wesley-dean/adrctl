@@ -27,6 +27,9 @@ __adrctl_match_adr_basename() {
   if [[ ${base} =~ ${__adrctl_adr_number_regex} ]]; then
     digits="${BASH_REMATCH[1]-}"
   else
+    # Bash returns 2 when the configured ERE is syntactically invalid.  Preserve
+    # that condition status before another command can replace it.
+    # shellcheck disable=SC2319
     regex_status=$?
     if (( regex_status == 2 )); then
       __adrctl_fail_usage 'ADRCTL_ADR_NUMBER_REGEX became invalid during matching'
@@ -68,7 +71,10 @@ __adrctl_validate_adr_discovery_state() {
     base="${path##*/}"
 
     if __adrctl_match_adr_basename "${base}" number; then
-      :
+      # Referencing the output also documents that successful matches always
+      # produce a logical number, even though this validation pass only needs the
+      # match/capture contract.
+      [[ ${number} =~ ^[0-9]+$ ]] || return "${__adrctl_exit_usage}"
     else
       status=$?
       (( status == 1 )) || return "${status}"
