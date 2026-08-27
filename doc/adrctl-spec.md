@@ -1049,6 +1049,16 @@ completed standard artifact by the pinned Bash-Minifier.
 inputs only.  The generated runtime artifacts SHALL require none of them as
 separate files.
 
+Published release checksum companions are separate from this dependency trust
+boundary.  New adrctl releases SHALL publish `.sha256` companions.  Historical
+`.256` companions remain valid for the releases that contain them.  A consumer
+that explicitly retrieves checksum sidecars MAY fall back from `.sha256` to
+`.256` only when the preferred resource is confirmed absent; transport, TLS,
+authorization, server, malformed-content, and checksum-verification failures SHALL
+remain failures.  Live `.sha256` or `.256` sidecars SHALL NOT dynamically replace
+the committed digests that authorize build/development dependencies.  See
+ADR-024.
+
 ## Build and Release Contract
 
 Make is the canonical orchestration interface.
@@ -1083,15 +1093,16 @@ A successful `make build` SHALL create exactly these six distribution outputs:
 dist/adrctl.dev.bash
 dist/adrctl.bash
 dist/adrctl.min.bash
-dist/adrctl.dev.bash.256
-dist/adrctl.bash.256
-dist/adrctl.min.bash.256
+dist/adrctl.dev.bash.sha256
+dist/adrctl.bash.sha256
+dist/adrctl.min.bash.sha256
 ```
 
-The `.256` files SHALL use conventional SHA-256 check-file syntax containing the
-artifact digest and corresponding basename.  `make checksums` MAY remain as a
-convenience target, but successful `make build` SHALL already have generated the
-three checksum files.
+The `.sha256` files SHALL use conventional SHA-256 check-file syntax containing
+the artifact digest and corresponding basename.  A successful build SHALL remove
+stale `.256` companions for the three current executable filenames.  `make
+checksums` MAY remain as a convenience target, but successful `make build` SHALL
+already have generated the three checksum files.
 
 The generated-artifact behavior suite SHALL execute against all three executable
 flavors.  Minimum-runtime validation SHALL exercise all three under Bash 4.3.
@@ -1104,7 +1115,7 @@ Release automation SHALL:
 4. build the exact release-version development, standard, and minified artifacts;
 5. validate each exact executable with the behavior suite;
 6. validate each exact executable under Bash 4.3;
-7. verify all three `.256` checksum files;
+7. verify all three `.sha256` checksum files;
 8. produce GitHub provenance attestation for all six files when supported; and
 9. create the tag/release and publish the exact six validated files.
 
