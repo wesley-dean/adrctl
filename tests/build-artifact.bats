@@ -47,7 +47,7 @@ sha256_of() {
   esac
 }
 
-@test "build emits three executable artifacts and three valid .256 files" {
+@test "build emits three executable artifacts and three valid .sha256 files" {
   local artifact checksum expected recorded_name
 
   for artifact in \
@@ -55,14 +55,13 @@ sha256_of() {
     "${REPO_ROOT}/dist/adrctl.bash" \
     "${REPO_ROOT}/dist/adrctl.min.bash"; do
     [ -x "${artifact}" ]
-    checksum="${artifact}.256"
+    checksum="${artifact}.sha256"
     [ -f "${checksum}" ]
     read -r expected recorded_name <"${checksum}"
     [ "${expected}" = "$(sha256_of "${artifact}")" ]
     [ "${recorded_name}" = "${artifact##*/}" ]
+    [ ! -e "${artifact}.256" ]
   done
-
-  [ ! -e "${REPO_ROOT}/dist/adrctl.bash.sha256" ]
 }
 
 @test "minified artifact is the deterministic Bash-Minifier transform of the standard artifact" {
@@ -167,7 +166,7 @@ EOF
   cache_dir="${fixture_root}/vendor"
   dist_dir="${fixture_root}/dist"
   mkdir -p "${cache_dir}" "${dist_dir}"
-  : >"${dist_dir}/adrctl.bash.sha256"
+  : >"${dist_dir}/adrctl.bash.256"
 
   cat >"${cache_dir}/mktext.bash" <<'EOF'
 #!/usr/bin/env bash
@@ -193,7 +192,8 @@ EOF
     "${dist_dir}/adrctl.bash"
   ! grep -F '## @brief Fixture comment from an embedded library.' \
     "${dist_dir}/adrctl.min.bash"
-  [ ! -e "${dist_dir}/adrctl.bash.sha256" ]
+  [ -f "${dist_dir}/adrctl.bash.sha256" ]
+  [ ! -e "${dist_dir}/adrctl.bash.256" ]
   [ ! -e "${cache_dir}/bashdeps.bash" ]
 }
 
