@@ -45,15 +45,15 @@ fetch code from the network.
 
 The maintained implementation is modular Bash source under `lib/` and `src/`.
 A successful build produces three executable distribution flavors and one
-adjacent SHA-256 check file for each:
+adjacent SHA-256 checksum file for each:
 
 ```text
 dist/adrctl.dev.bash
 dist/adrctl.bash
 dist/adrctl.min.bash
-dist/adrctl.dev.bash.256
-dist/adrctl.bash.256
-dist/adrctl.min.bash.256
+dist/adrctl.dev.bash.sha256
+dist/adrctl.bash.sha256
+dist/adrctl.min.bash.sha256
 ```
 
 The flavors share one implementation and one runtime contract:
@@ -69,8 +69,10 @@ Generated build-identification comments remain in the development and standard
 artifacts.  Bash-Minifier removes them from the compact representation together
 with other comments it encounters while minifying.
 
-The `.256` files use conventional SHA-256 check-file syntax and can be verified
-with `sha256sum -c` from the `dist/` directory.
+The `.sha256` files use conventional SHA-256 check-file syntax and can be verified
+with `sha256sum -c` from the `dist/` directory.  New releases publish only
+`.sha256` checksum companions.  Historical releases that contain `.256`
+companions remain valid for those release versions.
 
 From a fresh checkout, prepare the pinned dependencies and build all six files
 with:
@@ -100,7 +102,7 @@ Makefile
        -> dist/adrctl.dev.bash
        -> dist/adrctl.bash
        -> dist/adrctl.min.bash
-       -> one .256 file for each executable
+       -> one .sha256 file for each executable
 ```
 
 The Makefile owns only the bootstrap version, URL, and digest for `bashdeps.bash`.
@@ -165,13 +167,20 @@ the configured path is missing or is not executable, verifies the published
 SHA-256 digest before replacing the destination, and defines `adr` as an alias for
 the installed artifact.
 
+The helper requests the current `.sha256` companion first.  If and only if that
+request receives HTTP 404, it retries the historical `.256` filename so older
+releases remain installable.  Transport, TLS, authorization, server, malformed
+checksum, and checksum-mismatch failures abort instead of triggering fallback.
+
 ```bash
 adrctl_setup() {
   local adr_path="${adr_path:-${HOME}/.local/bin/adrctl.bash}"
   local adr_url="${adr_url:-https://github.com/wesley-dean/adrctl/releases/latest/download/adrctl.bash}"
-  local checksum_url="${adr_url}.256"
+  local checksum_url="${adr_url}.sha256"
+  local legacy_checksum_url="${adr_url}.256"
   local tmp_path
   local checksum_path
+  local checksum_status
   local expected
   local actual
 
@@ -181,10 +190,32 @@ adrctl_setup() {
     if ! tmp_path="$(mktemp "${adr_path}.tmp.XXXXXX")"; then
       return 1
     fi
-    checksum_path="${tmp_path}.256"
+    checksum_path="${tmp_path}.sha256"
 
-    if ! curl -fsSL "${adr_url}" -o "${tmp_path}" ||
-      ! curl -fsSL "${checksum_url}" -o "${checksum_path}"; then
+    if ! curl -fsSL "${adr_url}" -o "${tmp_path}"; then
+      rm -f "${tmp_path}" "${checksum_path}"
+      return 1
+    fi
+
+    if ! checksum_status="$(
+      curl -sSL -o "${checksum_path}" -w '%{http_code}' "${checksum_url}"
+    )"; then
+      rm -f "${tmp_path}" "${checksum_path}"
+      return 1
+    fi
+
+    if [[ "${checksum_status}" == 404 ]]; then
+      if ! checksum_status="$(
+        curl -sSL -o "${checksum_path}" -w '%{http_code}' "${legacy_checksum_url}"
+      )"; then
+        rm -f "${tmp_path}" "${checksum_path}"
+        return 1
+      fi
+    fi
+
+    if [[ ! "${checksum_status}" =~ ^2[0-9][0-9]$ ]]; then
+      printf 'adrctl release checksum download failed with HTTP %s\n' \
+        "${checksum_status}" >&2
       rm -f "${tmp_path}" "${checksum_path}"
       return 1
     fi
@@ -529,8 +560,9 @@ make distclean
 
 `make all` is the fresh-checkout convenience path: synchronize approved
 dependencies and then build.  `make build` assumes dependency state has already
-been prepared and produces all three executable flavors plus their `.256` files.
-`make deps-check` provides the corresponding network-free integrity check.
+been prepared and produces all three executable flavors plus their `.sha256`
+files.  `make deps-check` provides the corresponding network-free integrity
+check.
 
 `make docs` synchronizes the manifest-managed Bash Doxygen filter before
 regenerating `doc/reference/`; the generated reference tree remains ignored by
@@ -556,20 +588,28 @@ Project documentation is deliberately split by responsibility:
 The initial architecture and compatibility analysis is also retained under
 `doc/` for provenance and future maintenance.
 
+ADR-024 defines the current checksum companion naming and historical-read
+compatibility policy.
+
 ## Release Model
 
 Releases use Semantic Versioning and publish three executable representations of
 one adrctl implementation: `adrctl.dev.bash`, the default `adrctl.bash`, and
-`adrctl.min.bash`.  Each executable is accompanied by an adjacent `.256` SHA-256
-check file, for six release files in total.  The product identity remains
-`adrctl`; README command examples use the standard released `adrctl.bash` filename
-unless demonstrating another distribution flavor or the supported `adr`
+`adrctl.min.bash`.  Each executable is accompanied by an adjacent `.sha256`
+SHA-256 checksum file, for six release files in total.  The product identity
+remains `adrctl`; README command examples use the standard released `adrctl.bash`
+filename unless demonstrating another distribution flavor or the supported `adr`
 compatibility invocation.
 
 Release validation synchronizes and verifies the committed dependency manifest
 before building and testing all three exact executable artifacts, verifies all
-three SHA-256 check files, and produces GitHub provenance attestation for the six
-published files when supported by the release platform.
+three SHA-256 checksum files, and produces GitHub provenance attestation for the
+six published files when supported by the release platform.
+
+Historical releases that contain `.256` companions remain unchanged.  Consumers
+that retrieve checksum sidecars across release generations should request
+`.sha256` first and fall back to `.256` only when the preferred resource is
+confirmed absent, as defined by ADR-024.
 
 ## License
 

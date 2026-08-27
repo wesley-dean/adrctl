@@ -50,6 +50,9 @@ silent architectural drift.
 New ADRs created during initial development remain `Proposed` until the maintainer
 explicitly accepts them.
 
+Checksum companion naming and historical-read compatibility are governed by
+ADR-024.
+
 ## Foundational Architecture
 
 Preserve these boundaries unless a later ADR intentionally changes them:
@@ -65,7 +68,7 @@ Preserve these boundaries unless a later ADR intentionally changes them:
   library inputs while retaining generated build-identification comments.
 - `dist/adrctl.min.bash` is produced by applying the pinned Bash-Minifier build
   dependency to the completed standard artifact.
-- Each executable artifact has an adjacent `.256` SHA-256 check file.
+- Each executable artifact has an adjacent `.sha256` SHA-256 checksum file.
 - The canonical installed command identity remains `adrctl`.
 - Every generated executable has one effective product entrypoint owned by
   `adrctl`.
@@ -225,10 +228,19 @@ A successful `make build` produces:
 dist/adrctl.dev.bash
 dist/adrctl.bash
 dist/adrctl.min.bash
-dist/adrctl.dev.bash.256
-dist/adrctl.bash.256
-dist/adrctl.min.bash.256
+dist/adrctl.dev.bash.sha256
+dist/adrctl.bash.sha256
+dist/adrctl.min.bash.sha256
 ```
+
+New releases publish only `.sha256` checksum companions.  Historical `.256`
+release assets remain valid for the releases that contain them.  Code that
+explicitly retrieves release checksum sidecars may fall back from `.sha256` to
+`.256` only when the preferred resource is confirmed absent; transport, TLS,
+authorization, server, malformed-content, and checksum-verification failures
+remain failures.  This compatibility rule does not change dependency trust:
+committed SHA-256 digests remain authoritative for the bashdeps bootstrap and
+manifest-managed artifacts.
 
 The build injects immutable version/build metadata into the development and
 standard assemblies.  The development flavor embeds the manifest-managed
@@ -408,7 +420,7 @@ Documentation-only requests must preserve executable behavior exactly.
 
 ## Documentation Standards
 
-Follow ADR-017, ADR-018, ADR-020, ADR-021, ADR-022, and ADR-023.
+Follow ADR-017, ADR-018, ADR-020, ADR-021, ADR-022, ADR-023, and ADR-024.
 
 Hand-maintained Bash uses Doxygen-compatible documentation comments.
 
@@ -510,7 +522,7 @@ Validation should include the applicable subset of:
 - literal generated-artifact tests;
 - `adr` symlink tests;
 - generated documentation;
-- verification of all `.256` files; and
+- verification of all `.sha256` files; and
 - complete diff review.
 
 Report only validation actually performed.  Do not invent successful tool output.
@@ -523,9 +535,9 @@ Release artifacts are:
 dist/adrctl.dev.bash
 dist/adrctl.bash
 dist/adrctl.min.bash
-dist/adrctl.dev.bash.256
-dist/adrctl.bash.256
-dist/adrctl.min.bash.256
+dist/adrctl.dev.bash.sha256
+dist/adrctl.bash.sha256
+dist/adrctl.min.bash.sha256
 ```
 
 Release acceptance concerns the exact bytes of all six files that will be
@@ -533,7 +545,7 @@ published.
 
 The release workflow validates source and behavior, synchronizes and verifies the
 committed dependency manifest, builds all three executable flavors with the chosen
-SemVer, validates each executable, verifies each SHA-256 check file, produces
+SemVer, validates each executable, verifies each SHA-256 checksum file, produces
 provenance attestation when supported, and publishes those exact bytes.
 
 `adrctl.bash` remains the standard/default distribution.  Do not create a

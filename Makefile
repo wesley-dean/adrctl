@@ -8,7 +8,8 @@ DIST_DEV_SCRIPT := $(DIST_DIR)/adrctl.dev.bash
 DIST_SCRIPT := $(DIST_DIR)/adrctl.bash
 DIST_MIN_SCRIPT := $(DIST_DIR)/adrctl.min.bash
 DIST_SCRIPTS := $(DIST_DEV_SCRIPT) $(DIST_SCRIPT) $(DIST_MIN_SCRIPT)
-DIST_CHECKSUMS := $(addsuffix .256,$(DIST_SCRIPTS))
+DIST_CHECKSUMS := $(addsuffix .sha256,$(DIST_SCRIPTS))
+LEGACY_CHECKSUMS := $(addsuffix .256,$(DIST_SCRIPTS))
 
 LIB_FILES := \
 	lib/runtime.bash \
@@ -121,16 +122,16 @@ build: $(SOURCE_FILES)
 		fi; \
 		printf '%s  %s\n' "$$digest" "$$final_name" >"$$checksum"; \
 	}; \
-	write_checksum "$(DIST_DEV_SCRIPT).tmp" "$(DIST_DEV_SCRIPT).256.tmp" "$(notdir $(DIST_DEV_SCRIPT))"; \
-	write_checksum "$(DIST_SCRIPT).tmp" "$(DIST_SCRIPT).256.tmp" "$(notdir $(DIST_SCRIPT))"; \
-	write_checksum "$(DIST_MIN_SCRIPT).tmp" "$(DIST_MIN_SCRIPT).256.tmp" "$(notdir $(DIST_MIN_SCRIPT))"; \
-	rm -f "$(DIST_SCRIPT).sha256"; \
+	write_checksum "$(DIST_DEV_SCRIPT).tmp" "$(DIST_DEV_SCRIPT).sha256.tmp" "$(notdir $(DIST_DEV_SCRIPT))"; \
+	write_checksum "$(DIST_SCRIPT).tmp" "$(DIST_SCRIPT).sha256.tmp" "$(notdir $(DIST_SCRIPT))"; \
+	write_checksum "$(DIST_MIN_SCRIPT).tmp" "$(DIST_MIN_SCRIPT).sha256.tmp" "$(notdir $(DIST_MIN_SCRIPT))"; \
+	rm -f $(LEGACY_CHECKSUMS); \
 	mv "$(DIST_DEV_SCRIPT).tmp" "$(DIST_DEV_SCRIPT)"; \
 	mv "$(DIST_SCRIPT).tmp" "$(DIST_SCRIPT)"; \
 	mv "$(DIST_MIN_SCRIPT).tmp" "$(DIST_MIN_SCRIPT)"; \
-	mv "$(DIST_DEV_SCRIPT).256.tmp" "$(DIST_DEV_SCRIPT).256"; \
-	mv "$(DIST_SCRIPT).256.tmp" "$(DIST_SCRIPT).256"; \
-	mv "$(DIST_MIN_SCRIPT).256.tmp" "$(DIST_MIN_SCRIPT).256"
+	mv "$(DIST_DEV_SCRIPT).sha256.tmp" "$(DIST_DEV_SCRIPT).sha256"; \
+	mv "$(DIST_SCRIPT).sha256.tmp" "$(DIST_SCRIPT).sha256"; \
+	mv "$(DIST_MIN_SCRIPT).sha256.tmp" "$(DIST_MIN_SCRIPT).sha256"
 
 ## Force the bootstrap file target to validate cached bytes whenever requested.
 FORCE:

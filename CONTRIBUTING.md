@@ -77,21 +77,26 @@ make checksums
 ```
 
 A successful `make build` produces three executable flavors and three adjacent
-SHA-256 check files:
+SHA-256 checksum files:
 
 ```text
 dist/adrctl.dev.bash
 dist/adrctl.bash
 dist/adrctl.min.bash
-dist/adrctl.dev.bash.256
-dist/adrctl.bash.256
-dist/adrctl.min.bash.256
+dist/adrctl.dev.bash.sha256
+dist/adrctl.bash.sha256
+dist/adrctl.min.bash.sha256
 ```
 
 The development flavor retains maintained adrctl comments, `adrctl.bash` is the
 standard comment-stripped distribution, and the minified flavor is produced from
 the standard artifact by the manifest-managed Bash-Minifier.  These files are
 build output, not maintained source, and should not be edited directly.
+
+New releases publish only `.sha256` checksum companions.  Historical `.256`
+release assets remain valid for the releases that contain them; consumers that
+explicitly retrieve sidecars should prefer `.sha256` and use `.256` only when the
+preferred asset is confirmed absent.  See ADR-024 for the compatibility rule.
 
 `make build` is network-free and expects dependency state to have been prepared.
 Use `make all` from a fresh checkout or run `make deps build` explicitly.

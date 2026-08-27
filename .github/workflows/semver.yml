@@ -94,9 +94,9 @@ jobs:
         run: |
           cd dist
           sha256sum -c \
-            adrctl.dev.bash.256 \
-            adrctl.bash.256 \
-            adrctl.min.bash.256
+            adrctl.dev.bash.sha256 \
+            adrctl.bash.sha256 \
+            adrctl.min.bash.sha256
 
       - name: Attest release artifacts
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
@@ -105,9 +105,9 @@ jobs:
             dist/adrctl.dev.bash
             dist/adrctl.bash
             dist/adrctl.min.bash
-            dist/adrctl.dev.bash.256
-            dist/adrctl.bash.256
-            dist/adrctl.min.bash.256
+            dist/adrctl.dev.bash.sha256
+            dist/adrctl.bash.sha256
+            dist/adrctl.min.bash.sha256
 
       - name: Create release
         uses: softprops/action-gh-release@718ea10b132b3b2eba29c1007bb80653f286566b # v3.0.1
@@ -123,6 +123,6 @@ jobs:
             dist/adrctl.dev.bash
             dist/adrctl.bash
             dist/adrctl.min.bash
-            dist/adrctl.dev.bash.256
-            dist/adrctl.bash.256
-            dist/adrctl.min.bash.256
+            dist/adrctl.dev.bash.sha256
+            dist/adrctl.bash.sha256
+            dist/adrctl.min.bash.sha256
