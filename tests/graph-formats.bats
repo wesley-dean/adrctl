@@ -37,11 +37,14 @@ run_in() {
 write_adr() {
   local path
   local title
+  local status_line
 
   path="$1"
   title="$2"
+  shift 2
 
-  cat >"${path}" <<EOF
+  {
+    cat <<EOF
 # ${title}
 
 Date: 2026-08-30
@@ -49,6 +52,11 @@ Date: 2026-08-30
 ## Status
 
 Accepted
+EOF
+    for status_line in "$@"; do
+      printf '\n%s\n' "${status_line}"
+    done
+    cat <<'EOF'
 
 ## Context
 
@@ -62,6 +70,7 @@ Decision.
 
 Consequences.
 EOF
+  } >"${path}"
 }
 
 @test "default graph output is identical to explicit dot format" {
@@ -98,14 +107,10 @@ EOF
 }
 
 @test "dot and mermaid serializers use the same prefixed relationship semantics" {
-  write_adr "${WORK}/doc/adr/ADR-0001-one.md" '1. One'
-  write_adr "${WORK}/doc/adr/ADR-0002-two.md" '2. Two'
-  sed -i '/^Accepted$/a\\
-Depends on [2. Two](ADR-0002-two.md)' \
-    "${WORK}/doc/adr/ADR-0001-one.md"
-  sed -i '/^Accepted$/a\\
-Required by [1. One](ADR-0001-one.md)' \
-    "${WORK}/doc/adr/ADR-0002-two.md"
+  write_adr "${WORK}/doc/adr/ADR-0001-one.md" '1. One' \
+    'Depends on [2. Two](ADR-0002-two.md)'
+  write_adr "${WORK}/doc/adr/ADR-0002-two.md" '2. Two' \
+    'Required by [1. One](ADR-0001-one.md)'
 
   run run_in "${WORK}" "${ADRCTL}" generate graph --format dot
   [ "${status}" -eq 0 ]
@@ -123,11 +128,9 @@ Required by [1. One](ADR-0001-one.md)' \
 ADRCTL_ADR_GLOB=decision-*.md
 ADRCTL_ADR_NUMBER_REGEX=^decision-[0-9]{4}-([0-9]+)-.+\.md$
 EOF
-  write_adr "${WORK}/doc/adr/decision-2026-0042-one.md" '42. One'
+  write_adr "${WORK}/doc/adr/decision-2026-0042-one.md" '42. One' \
+    'Depends on [43. Two](decision-2026-0043-two.md)'
   write_adr "${WORK}/doc/adr/decision-2026-0043-two.md" '43. Two'
-  sed -i '/^Accepted$/a\\
-Depends on [43. Two](decision-2026-0043-two.md)' \
-    "${WORK}/doc/adr/decision-2026-0042-one.md"
 
   run run_in "${WORK}" "${ADRCTL}" generate graph --format dot
   [ "${status}" -eq 0 ]
@@ -141,11 +144,9 @@ Depends on [43. Two](decision-2026-0043-two.md)' \
 }
 
 @test "mermaid escapes quoted node and relationship labels" {
-  write_adr "${WORK}/doc/adr/0001-one.md" '1. Use "quoted" APIs & contracts'
+  write_adr "${WORK}/doc/adr/0001-one.md" '1. Use "quoted" APIs & contracts' \
+    'Depends on "quoted" & stable [2. Two](0002-two.md)'
   write_adr "${WORK}/doc/adr/0002-two.md" '2. Two'
-  sed -i '/^Accepted$/a\\
-Depends on "quoted" & stable [2. Two](0002-two.md)' \
-    "${WORK}/doc/adr/0001-one.md"
 
   run run_in "${WORK}" "${ADRCTL}" generate graph --format mermaid
 
