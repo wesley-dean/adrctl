@@ -877,8 +877,29 @@ Intro/outro files SHALL be validated before report output begins where practical
 Invocation:
 
 ```text
-adrctl generate graph [-p LINK_PREFIX] [-e LINK_EXTENSION]
+adrctl generate graph [-p LINK_PREFIX] [-e LINK_EXTENSION] [--format dot|mermaid]
 ```
+
+The graph report is one semantic ADR relationship graph with selectable textual
+serialization.  The supported formats are:
+
+```text
+dot
+mermaid
+```
+
+When `--format` is omitted, the effective format is `dot`.  Therefore:
+
+```text
+adrctl generate graph
+adrctl generate graph --format dot
+```
+
+SHALL select the same DOT serializer and preserve the established DOT
+representation.
+
+A missing `--format` value, repeated `--format`, or unsupported format value is
+invalid usage and SHALL fail with status 2.
 
 The default link extension is:
 
@@ -886,16 +907,49 @@ The default link extension is:
 .html
 ```
 
-The command SHALL emit Graphviz DOT source to standard output and SHALL NOT invoke
-Graphviz.
+Graph construction SHALL occur before serialization.  Both serializers SHALL
+consume the same ordered graph model containing managed ADR nodes, sequence edges
+between consecutive logical ADR numbers, and recognized Status-section
+relationship edges.  A serializer SHALL NOT independently rediscover ADRs or
+re-parse relationship semantics.
 
-Each node contains its ADR title and a URL derived from basename, `LINK_PREFIX`,
-and `LINK_EXTENSION`.
+Relationship target basenames SHALL be interpreted through the effective
+`ADRCTL_ADR_GLOB` and `ADRCTL_ADR_NUMBER_REGEX` discovery contract.  Graph
+relationship discovery SHALL NOT require a target basename to begin directly with
+its decimal logical number.
 
-The report preserves predecessor-style dotted edges between successive logical
-ADR numbers and emits relationship edges derived from recognized Status links.
 Reverse relationship labels ending in ` by` are omitted from graph relationship
 edges to avoid duplicate reciprocal presentation, preserving predecessor intent.
+
+For DOT output:
+
+- each node contains its ADR title and a URL derived from basename,
+  `LINK_PREFIX`, and `LINK_EXTENSION`;
+- sequence edges retain the predecessor-compatible dotted DOT representation;
+- relationship edges retain their direction and relationship labels; and
+- Graphviz SHALL NOT be invoked merely to emit DOT source.
+
+For Mermaid output:
+
+- output SHALL be raw Mermaid flowchart source without Markdown code fences;
+- the flowchart SHALL use deterministic ADR node identifiers derived from logical
+  ADR numbers;
+- node labels SHALL contain ADR titles;
+- sequence edges SHALL be dotted directed links;
+- relationship edges SHALL use the same direction and labels as the graph model;
+- node and edge text SHALL be escaped deterministically for Mermaid syntax; and
+- each managed node SHALL receive a Mermaid link directive whose target is
+  derived from the same `LINK_PREFIX`, ADR basename, and `LINK_EXTENSION` rule
+  used by DOT URLs.
+
+Whether a downstream Mermaid renderer activates node links is outside adrctl's
+contract.  Mermaid renderer security policy may disable interaction.  adrctl's
+responsibility is to emit deterministic link directives, not to alter downstream
+security configuration.
+
+Generating Mermaid SHALL NOT require Mermaid CLI, Node.js, a browser, or another
+Mermaid renderer.  Rendering either textual format into a visual artifact remains
+a downstream concern.
 
 ## Command: upgrade-repository
 
@@ -946,7 +1000,9 @@ more
 Git MAY be queried for project-root fallback.  Core ADR commands SHALL NOT stage,
 commit, checkout, or otherwise mutate Git state automatically.
 
-`generate graph` emits DOT.  Graphviz is not a core runtime dependency.
+`generate graph` emits textual graph source.  DOT generation does not require
+Graphviz, and Mermaid generation does not require Mermaid CLI, Node.js, a browser,
+or another Mermaid renderer.
 
 External command configuration SHALL be invoked without `eval`.
 
@@ -978,8 +1034,9 @@ prevent successful completion.
 
 Status 2 examples include unknown commands/options, missing required arguments,
 malformed `-l` specifications, unknown `ADRCTL_` project keys, invalid delimiter
-pairs, invalid ADR candidate globs, invalid ADR number regexes, and matched number
-regexes whose capture group 1 does not satisfy the decimal-number contract.
+pairs, invalid ADR candidate globs, invalid ADR number regexes, matched number
+regexes whose capture group 1 does not satisfy the decimal-number contract, and
+invalid graph format selection.
 
 Internal `mktext` statuses SHALL be translated into this public vocabulary.
 
@@ -1193,7 +1250,7 @@ The initial release does not promise:
 - external plugin discovery;
 - general Markdown parsing or formatting;
 - automatic Git staging/commits;
-- automatic Graphviz image rendering;
+- automatic Graphviz or Mermaid image rendering;
 - cross-file transactional filesystem semantics;
 - guaranteed multi-process sequential ADR number allocation;
 - runtime dependency downloads;
