@@ -159,11 +159,11 @@ __adrctl_graph_mermaid_escape() {
 ## @param $3 Link extension.
 ## @param $4 Output variable.
 __adrctl_graph_url() {
-  local url
+  local __adrctl_local_url
 
-  url="$1$2"
-  url="${url%.md}$3"
-  printf -v "$4" '%s' "${url}"
+  __adrctl_local_url="$1$2"
+  __adrctl_local_url="${__adrctl_local_url%.md}$3"
+  printf -v "$4" '%s' "${__adrctl_local_url}"
 }
 
 ## @fn __adrctl_graph_emit_dot()
