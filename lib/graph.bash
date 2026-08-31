@@ -11,6 +11,8 @@
 ## @param $6 Edge-kind array variable name.
 ## @retval 0 Relationship discovery completed.
 ## @retval 2 Discovery configuration failed while interpreting a target basename.
+# ShellCheck cannot infer that these namerefs bind to caller-owned arrays.
+# shellcheck disable=SC2178
 __adrctl_graph_append_relationships() {
   local source
   local source_number
@@ -71,6 +73,8 @@ __adrctl_graph_append_relationships() {
 ## @retval 0 The complete graph model was built.
 ## @retval 1 A managed ADR title could not be read.
 ## @retval 2 Discovery configuration is invalid.
+# ShellCheck cannot infer that these namerefs bind to caller-owned arrays.
+# shellcheck disable=SC2178
 __adrctl_graph_build_model() {
   local -n node_numbers_ref="$1"
   local -n node_titles_ref="$2"
@@ -179,6 +183,8 @@ __adrctl_graph_url() {
 ## @param $9 Link extension.
 ## @retval 0 DOT was written to standard output.
 ## @retval 1 Output failed.
+# ShellCheck cannot infer that these namerefs bind to caller-owned arrays.
+# shellcheck disable=SC2178
 __adrctl_graph_emit_dot() {
   local -n node_numbers_ref="$1"
   local -n node_titles_ref="$2"
@@ -243,6 +249,8 @@ __adrctl_graph_emit_dot() {
 ## @param $9 Link extension.
 ## @retval 0 Mermaid source was written to standard output.
 ## @retval 1 Output failed.
+# ShellCheck cannot infer that these namerefs bind to caller-owned arrays.
+# shellcheck disable=SC2178
 __adrctl_graph_emit_mermaid() {
   local -n node_numbers_ref="$1"
   local -n node_titles_ref="$2"
@@ -298,6 +306,9 @@ __adrctl_graph_emit_mermaid() {
 ## @retval 0 Graph source was written.
 ## @retval 1 Graph discovery or output failed.
 ## @retval 2 Graph options are invalid.
+# The model arrays are populated through variable-name arguments, and the ADR
+# directory is initialized by the project module before command dispatch.
+# shellcheck disable=SC2034,SC2154
 __adrctl_command_generate_graph() {
   local prefix
   local extension
