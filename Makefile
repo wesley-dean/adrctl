@@ -17,7 +17,8 @@ LIB_FILES := \
 	lib/project.bash \
 	lib/render.bash \
 	lib/adr.bash \
-	lib/commands.bash
+	lib/commands.bash \
+	lib/graph.bash
 ENTRYPOINT := src/adrctl.bash
 SOURCE_FILES := $(LIB_FILES) $(ENTRYPOINT)
 CHECK_BASH_FILES := $(shell find lib src tests -type f -name '*.bash' -print | LC_ALL=C sort)
