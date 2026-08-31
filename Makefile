@@ -22,6 +22,7 @@ LIB_FILES := \
 ENTRYPOINT := src/adrctl.bash
 SOURCE_FILES := $(LIB_FILES) $(ENTRYPOINT)
 CHECK_BASH_FILES := $(shell find lib src tests -type f -name '*.bash' -print | LC_ALL=C sort)
+CHECK_BASH_FILES_EXCEPT_GRAPH := $(filter-out lib/graph.bash,$(CHECK_BASH_FILES))
 
 VENDOR_DIR := vendor
 DEPENDENCY_MANIFEST := dependencies.txt
@@ -207,9 +208,13 @@ deps-check: verify-bashdeps $(DEPENDENCY_MANIFEST)
 ##
 ## Artifact assembly keeps an explicit module order, while validation discovers
 ## Bash sources recursively so newly added files cannot silently escape checks.
+## graph.bash intentionally passes arrays by variable name through Bash namerefs
+## and consumes project state assigned by earlier modules; scope ShellCheck's
+## indirect-reference false positives to that module only.
 check:
 	bash -n $(CHECK_BASH_FILES)
-	shellcheck $(CHECK_BASH_FILES)
+	shellcheck $(CHECK_BASH_FILES_EXCEPT_GRAPH)
+	shellcheck --exclude=SC2034,SC2154,SC2178 lib/graph.bash
 
 ## Format maintained Bash source using the project formatter contract.
 format:
