@@ -99,7 +99,10 @@ __adrctl_graph_build_model() {
   previous_number=''
   for path in "${files[@]}"; do
     __adrctl_file_number "${path}" number || return $?
-    __adrctl_read_title "${path}" title || return 1
+    __adrctl_read_title "${path}" title || {
+      __adrctl_fail_operational "cannot read ADR title: ${path##*/}"
+      return $?
+    }
 
     node_numbers_ref+=("${number}")
     node_titles_ref+=("${title}")
@@ -374,12 +377,9 @@ __adrctl_command_generate_graph() {
   declare -a edge_labels=()
   declare -a edge_kinds=()
 
-  if ! __adrctl_graph_build_model \
+  __adrctl_graph_build_model \
     node_numbers node_titles node_bases \
-    edge_sources edge_targets edge_labels edge_kinds; then
-    __adrctl_fail_operational 'failed to build ADR relationship graph'
-    return $?
-  fi
+    edge_sources edge_targets edge_labels edge_kinds || return $?
 
   case "${format}" in
     dot)
@@ -395,4 +395,108 @@ __adrctl_command_generate_graph() {
         "${prefix}" "${extension}"
       ;;
   esac
+}
+
+## @fn __adrctl_help_text()
+## @brief Builds built-in help text, including selectable graph serialization.
+## @param $1 Output variable.
+## @param $2... Optional command/subcommand path.
+## @retval 0 Help exists.
+## @retval 2 Requested help subject is unknown.
+## @details
+## This definition intentionally follows the command module in assembly order so
+## the graph-specific public grammar remains documented without duplicating graph
+## serialization semantics in the command dispatcher.
+__adrctl_help_text() {
+  local __adrctl_local_output_name
+  local __adrctl_local_invoked
+  local __adrctl_local_subject
+  local __adrctl_local_built_text
+
+  __adrctl_local_output_name="$1"
+  shift
+  __adrctl_local_invoked="$(__adrctl_invoked_name)"
+  __adrctl_local_subject="${1-}"
+  __adrctl_local_built_text=''
+
+  case "${__adrctl_local_subject}" in
+    '')
+      printf -v __adrctl_local_built_text '%s\n' \
+        "Usage: ${__adrctl_local_invoked} [--project-root PATH] COMMAND [OPTION...]" \
+        '' \
+        'Commands:' \
+        '  init [DIRECTORY]                       Initialize an ADR repository.' \
+        '  new [OPTIONS] TITLE...                 Create a numbered ADR.' \
+        '  link SOURCE LINK TARGET REVERSE-LINK   Add reciprocal ADR links.' \
+        '  list                                   List ADR files.' \
+        '  generate [toc|graph] [OPTIONS]         Generate ADR reports.' \
+        '  upgrade-repository                     Upgrade recognized legacy ADR data.' \
+        '  help [COMMAND [SUBCOMMAND...]]         Show help.' \
+        '' \
+        'Global informational forms:' \
+        "  ${__adrctl_local_invoked} -h | --help" \
+        "  ${__adrctl_local_invoked} --version"
+      ;;
+    init)
+      printf -v __adrctl_local_built_text '%s\n' \
+        "Usage: ${__adrctl_local_invoked} init [DIRECTORY]" \
+        '' \
+        'Initialize the current project with Architecture Decision Records.' \
+        'DIRECTORY defaults to doc/adr.  A supplied directory is recorded in .adr-dir.'
+      ;;
+    new)
+      printf -v __adrctl_local_built_text '%s\n' \
+        "Usage: ${__adrctl_local_invoked} new [-s REFERENCE]... [-l TARGET:LINK:REVERSE-LINK]... [OPTIONS] TITLE..." \
+        '' \
+        'Options:' \
+        '  -s REFERENCE                    Supersede an existing ADR.' \
+        '  -l TARGET:LINK:REVERSE-LINK     Add reciprocal relationships.' \
+        '  --template PATH                 Use an explicit body template.' \
+        '  --filename-pattern PATTERN      Override the ADR filename pattern.' \
+        '  --start-delimiter STRING        Set body-template start delimiter.' \
+        '  --end-delimiter STRING          Set body-template end delimiter.'
+      ;;
+    link)
+      printf -v __adrctl_local_built_text '%s\n' \
+        "Usage: ${__adrctl_local_invoked} link SOURCE LINK TARGET REVERSE-LINK" \
+        '' \
+        'Add a relationship from SOURCE to TARGET and the reciprocal relationship.'
+      ;;
+    list)
+      printf -v __adrctl_local_built_text '%s\n' "Usage: ${__adrctl_local_invoked} list"
+      ;;
+    generate)
+      if [[ ${2-} == toc ]]; then
+        printf -v __adrctl_local_built_text '%s\n' \
+          "Usage: ${__adrctl_local_invoked} generate toc [-i INTRO_FILE] [-o OUTRO_FILE] [-p LINK_PREFIX]"
+      elif [[ ${2-} == graph ]]; then
+        printf -v __adrctl_local_built_text '%s\n' \
+          "Usage: ${__adrctl_local_invoked} generate graph [-p LINK_PREFIX] [-e LINK_EXTENSION] [--format dot|mermaid]" \
+          '' \
+          'DOT is the default graph serialization.  Mermaid emits raw flowchart source.'
+      elif [[ -n ${2-} ]]; then
+        # Runtime defines this cross-module exit status before command dispatch.
+        # shellcheck disable=SC2154
+        return "${__adrctl_exit_usage}"
+      else
+        printf -v __adrctl_local_built_text '%s\n' \
+          "Usage: ${__adrctl_local_invoked} generate [REPORT [OPTION...]]" \
+          '' \
+          'Reports:' \
+          '  toc' \
+          '  graph'
+      fi
+      ;;
+    upgrade-repository)
+      printf -v __adrctl_local_built_text '%s\n' \
+        "Usage: ${__adrctl_local_invoked} upgrade-repository"
+      ;;
+    *)
+      # Runtime defines this cross-module exit status before command dispatch.
+      # shellcheck disable=SC2154
+      return "${__adrctl_exit_usage}"
+      ;;
+  esac
+
+  printf -v "${__adrctl_local_output_name}" '%s' "${__adrctl_local_built_text}"
 }
