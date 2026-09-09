@@ -1,0 +1,588 @@
+.TH ADRCTL 1 "2026-09-06" "adrctl" "User Commands"
+.SH NAME
+adrctl \- create, link, list, and report on Architecture Decision Records
+.SH SYNOPSIS
+.B adrctl
+.RI [ --project-root " PATH" ]
+.I COMMAND
+.RI [ OPTION ...]
+.RI [ ARGUMENT ...]
+.PP
+.B adrctl
+.RB { -h | --help | --version }
+.PP
+.B adrctl help
+.RI [ COMMAND
+.RI [ SUBCOMMAND ...]]
+.SH DESCRIPTION
+.B adrctl
+is a Bash command-line tool for managing Architecture Decision Records (ADRs).
+It is a behavior-compatible successor to
+.B adr-tools
+where practical, while adding stricter configuration handling, safer mutation
+preflight, configurable rendering, and additional report formats.
+.PP
+The canonical command name is
+.BR adrctl .
+The same executable may also be invoked through a filesystem symbolic link named
+.B adr
+for compatibility with established
+.B adr-tools
+workflows.  This compatibility name does not select a separate runtime mode.
+.PP
+Commands that operate on ADR files discover a project root and ADR directory,
+then work with the managed ADR set selected by the effective project
+configuration.  Normal runtime operation does not require network access.
+.SH COMMANDS
+.SS init
+.B adrctl init
+.RI [ DIRECTORY ]
+.PP
+Initialize an ADR repository and create the first ADR without opening an editor.
+If
+.I DIRECTORY
+is omitted, the ADR directory defaults to
+.B doc/adr
+relative to the project root.  If a directory is supplied, it is created as
+needed and recorded in
+.B .adr-dir
+when appropriate.
+.PP
+Initialization fails rather than silently reinitializing an ADR directory that
+already contains managed ADRs.  On success, the created ADR pathname is written
+to standard output.
+.SS new
+.B adrctl new
+.RB [ -s " REFERENCE" ]...
+.RB [ -l " TARGET:LINK:REVERSE-LINK" ]...
+.RI [ OPTIONS ]
+.I TITLE...
+.PP
+Create the next numbered ADR.  Title arguments are joined with single spaces.
+The default filename pattern is
+.BR {NUMBER4}-{TITLE_SLUG}.md ,
+and the default status for an ordinary new ADR is
+.BR Accepted .
+.PP
+The following options are supported:
+.TP
+.BI -s " REFERENCE"
+Supersede an existing ADR.  This option may be repeated.  The new ADR receives a
+.B Supercedes
+relationship and the target receives the reciprocal
+.B Superceded by
+relationship, preserving the historical observable spelling.
+.TP
+.BI -l " TARGET:LINK:REVERSE-LINK"
+Add a reciprocal relationship to an existing ADR.  This option may be repeated.
+The value must contain exactly three non-empty colon-delimited fields.
+.TP
+.BI --template " PATH"
+Use an explicit ADR body template.
+.TP
+.BI --filename-pattern " PATTERN"
+Override the filename pattern for this creation operation.
+.TP
+.BI --start-delimiter " STRING"
+Set the ADR body-template starting delimiter.
+.TP
+.BI --end-delimiter " STRING"
+Set the ADR body-template ending delimiter.  Starting and ending delimiter
+options must be supplied together at the same configuration layer.
+.PP
+After a new ADR and any reciprocal relationship changes are written,
+.B adrctl
+opens the created ADR using
+.B VISUAL
+or
+.BR EDITOR ,
+in that order.  If neither is configured, editing is skipped.  On success, the
+created ADR pathname is written to standard output.
+.SS link
+.B adrctl link
+.I SOURCE LINK TARGET REVERSE-LINK
+.PP
+Add a relationship from
+.I SOURCE
+to
+.I TARGET
+and a reciprocal relationship from
+.I TARGET
+to
+.IR SOURCE .
+Both ADR references and both required Status sections are validated before file
+replacement begins.
+.SS list
+.B adrctl list
+.PP
+Write one managed ADR pathname per line to standard output in logical numeric
+order.  Paths are presented relative to the caller's current working directory
+when possible.
+.SS generate
+.B adrctl generate
+.RI [ REPORT
+.RI [ OPTION ...]]
+.PP
+With no report name,
+.B adrctl
+writes the available report names in deterministic order:
+.B toc
+and
+.BR graph .
+.SS "generate toc"
+.B adrctl generate toc
+.RB [ -i " INTRO_FILE" ]
+.RB [ -o " OUTRO_FILE" ]
+.RB [ -p " LINK_PREFIX" ]
+.PP
+Generate a Markdown table of contents on standard output.  The report begins with
+.BR "# Architecture Decision Records" .
+An optional intro file is inserted before ADR entries and an optional outro file
+is appended after them.
+.TP
+.BI -i " INTRO_FILE"
+Insert readable file content after the report heading and before ADR entries.
+.TP
+.BI -o " OUTRO_FILE"
+Append readable file content after ADR entries.
+.TP
+.BI -p " LINK_PREFIX"
+Prefix generated ADR links with the supplied string.
+.SS "generate graph"
+.B adrctl generate graph
+.RB [ -p " LINK_PREFIX" ]
+.RB [ -e " LINK_EXTENSION" ]
+.RB [ --format " dot|mermaid" ]
+.PP
+Generate the ADR relationship graph as textual graph source on standard output.
+Graph construction is shared across serializers; only the textual representation
+changes.
+.TP
+.BI -p " LINK_PREFIX"
+Prefix generated node links with the supplied string.
+.TP
+.BI -e " LINK_EXTENSION"
+Replace the default link extension,
+.BR .html ,
+with the supplied extension.
+.TP
+.BI --format " dot|mermaid"
+Select the graph serialization.  The default is
+.BR dot .
+.B mermaid
+emits raw Mermaid flowchart source without Markdown code fences.
+.PP
+Generating DOT does not require Graphviz.  Generating Mermaid does not require
+Mermaid CLI, Node.js, a browser, or another Mermaid renderer.
+.SS upgrade-repository
+.B adrctl upgrade-repository
+.PP
+Upgrade recognized legacy ADR data.  The current migration converts managed ADR
+Date lines of the form
+.B Date: DD/MM/YYYY
+to
+.BR "Date: YYYY-MM-DD" .
+Other lines are preserved, and already-converted dates are unchanged by a second
+run.
+.SS help
+.B adrctl help
+.RI [ COMMAND
+.RI [ SUBCOMMAND ...]]
+.PP
+Display built-in help for the requested command path.  Help is shown through a
+pager selected from
+.BR ADR_PAGER ,
+.BR PAGER ,
+and
+.B more
+in that order.
+.SH GLOBAL OPTIONS
+.TP
+.BI --project-root " PATH"
+Explicitly select the project root for commands that use project state.  This
+option must appear before the command name and may be supplied at most once.
+.TP
+.BR -h , " " --help
+Display top-level help.
+.TP
+.B --version
+Display immutable build metadata using a stable three-line form containing the
+product version, source-revision build date, and source commit.
+.SH PROJECT DISCOVERY
+For commands that operate on an existing project, the project root is selected in
+this order:
+.IP 1. 3
+.B --project-root
+.IR PATH .
+.IP 2. 3
+The process environment variable
+.BR ADRCTL_PROJECT_ROOT .
+.IP 3. 3
+The nearest recognized ancestor marker while walking upward from the current
+working directory.
+.IP 4. 3
+The Git work-tree root, when Git can determine one.
+.IP 5. 3
+The current working directory.
+.PP
+Recognized ancestor markers are:
+.IP \(bu 2
+A
+.B .adr-dir
+file.
+.IP \(bu 2
+An existing
+.B doc/adr
+directory.
+.IP \(bu 2
+A
+.B .env
+file containing at least one syntactically valid assignment whose key begins
+with
+.BR ADRCTL_ .
+.PP
+A generic
+.B .env
+file containing no
+.B ADRCTL_
+assignment does not establish ADR project context.
+.PP
+.B init
+is an exception: unless explicitly redirected with
+.B --project-root
+or
+.BR ADRCTL_PROJECT_ROOT ,
+it initializes the current working directory rather than climbing to a Git root.
+.SH CONFIGURATION
+After selecting the project root,
+.B adrctl
+reads
+.B .env
+at that root when present.  The file is parsed as inert data; it is not sourced,
+evaluated, or shell-expanded.
+.PP
+Non-
+.B ADRCTL_
+keys are ignored.  Unknown
+.B ADRCTL_
+project keys are configuration errors.
+.PP
+Project-scoped settings follow this precedence from highest to lowest:
+.IP 1. 3
+Command-line option, where one exists.
+.IP 2. 3
+Process environment.
+.IP 3. 3
+Project
+.BR .env .
+.IP 4. 3
+Compatible legacy project metadata, such as
+.BR .adr-dir ,
+where applicable.
+.IP 5. 3
+Built-in default.
+.PP
+Supported project
+.B ADRCTL_
+keys include:
+.TP
+.B ADRCTL_ADR_DIR
+Select the ADR directory.
+.TP
+.B ADRCTL_ADR_GLOB
+Select candidate basenames within the ADR directory.  The default is
+.BR *.md .
+The value is basename-scoped and may not contain
+.BR / .
+.TP
+.B ADRCTL_ADR_NUMBER_REGEX
+Recognize managed ADR basenames and capture the complete logical decimal ADR
+number in regular-expression capture group 1.  The default recognizes common
+forms such as
+.BR 0001-example.md ,
+.BR ADR-0001-example.md ,
+and
+.BR decision-0001-example.md .
+.TP
+.B ADRCTL_TEMPLATE
+Select the ADR body template.
+.TP
+.B ADRCTL_FILENAME_PATTERN
+Select the filename pattern for newly created ADRs.
+.TP
+.B ADRCTL_TEMPLATE_START_DELIMITER
+Set the body-template starting delimiter.
+.TP
+.B ADRCTL_TEMPLATE_END_DELIMITER
+Set the body-template ending delimiter.
+.PP
+.B ADRCTL_PROJECT_ROOT
+is valid as a process-environment or command-line concept only.  Placing it in a
+project
+.B .env
+file is a configuration error.
+.SH ADR DIRECTORY AND DISCOVERY
+The ADR directory is selected from the effective configuration, then compatible
+.B .adr-dir
+metadata, and finally defaults to
+.B doc/adr
+relative to the project root.
+.PP
+Managed ADR discovery uses one shared pipeline: candidate basenames are selected
+with
+.BR ADRCTL_ADR_GLOB ,
+then validated with
+.BR ADRCTL_ADR_NUMBER_REGEX .
+All collection-driven operations, including listing, reference resolution,
+next-number allocation, TOC generation, graph generation, and repository upgrades,
+use this same managed ADR set.
+.PP
+Newly rendered filenames are validated against the effective discovery contract
+before publication so
+.B adrctl
+does not knowingly create an ADR that later commands would ignore or assign a
+different logical number.
+.SH ADR REFERENCES
+Commands accepting an ADR reference support:
+.IP \(bu 2
+An exact logical decimal ADR number.
+.IP \(bu 2
+An exact filename or basename.
+.IP \(bu 2
+A unique partial filename fragment.
+.PP
+Exact filename matches take precedence over partial matches.  Numeric references
+match the complete logical number and ignore presentation zero padding.  No match
+or an ambiguous match is an operational failure; ambiguous references are not
+resolved by selecting an incidental first match.
+.SH TEMPLATES
+ADR body templates are selected in this order:
+.IP 1. 3
+.B --template
+.IR PATH .
+.IP 2. 3
+.BR ADRCTL_TEMPLATE .
+.IP 3. 3
+Legacy
+.BR ADR_TEMPLATE .
+.IP 4. 3
+Project
+.BR ADRCTL_TEMPLATE .
+.IP 5. 3
+.B templates/template.md
+beneath the effective ADR directory, when readable.
+.IP 6. 3
+The built-in template.
+.PP
+The render context includes values such as
+.BR NUMBER ,
+.BR NUMBER4 ,
+.BR TITLE ,
+.BR TITLE_SLUG ,
+.BR STATUS ,
+.BR DATE ,
+.BR PROJECT_ROOT ,
+and
+.BR ADR_DIR .
+.PP
+When no explicit delimiter pair is configured, body-template syntax is detected
+conservatively.  A recognized braced context token selects
+.B {
+and
+.B }
+as delimiters; otherwise empty delimiters select legacy bare-token mode.  One
+body render uses exactly one delimiter pair.
+.PP
+Filename patterns are independent of body-template delimiter settings and always
+use the braced
+.B {KEY}
+grammar.
+.SH ENVIRONMENT
+.TP
+.B ADRCTL_PROJECT_ROOT
+Override project-root discovery for the current process.
+.TP
+.B ADRCTL_ADR_DIR
+Override the ADR directory.
+.TP
+.B ADRCTL_ADR_GLOB
+Override candidate-basename selection.
+.TP
+.B ADRCTL_ADR_NUMBER_REGEX
+Override managed-ADR number recognition.
+.TP
+.B ADRCTL_TEMPLATE
+Override the body-template path.
+.TP
+.B ADRCTL_FILENAME_PATTERN
+Override the filename pattern.
+.TP
+.B ADRCTL_TEMPLATE_START_DELIMITER
+Set the body-template starting delimiter.
+.TP
+.B ADRCTL_TEMPLATE_END_DELIMITER
+Set the body-template ending delimiter.
+.TP
+.B ADR_TEMPLATE
+Legacy body-template override retained for compatibility.
+.TP
+.B ADR_DATE
+Override the date used for newly created ADRs.
+.TP
+.B VISUAL
+Preferred editor for a newly created ADR.
+.TP
+.B EDITOR
+Fallback editor when
+.B VISUAL
+is unset or empty.
+.TP
+.B ADR_PAGER
+Preferred pager for help output.
+.TP
+.B PAGER
+Fallback pager when
+.B ADR_PAGER
+is unset or empty.
+.SH FILES
+.TP
+.B .env
+Project configuration file at the resolved project root.
+.TP
+.B .adr-dir
+Compatible legacy ADR-directory selector at the project root.
+.TP
+.B doc/adr/
+Default ADR directory relative to the project root.
+.TP
+.B doc/adr/templates/template.md
+Default project-local ADR body template when readable and no higher-precedence
+template is selected.
+.SH STANDARD STREAMS
+Standard output is reserved for requested results or explicit informational
+output, including created ADR pathnames, ADR listings, generated reports, help,
+and version information.
+.PP
+Diagnostics, warnings, configuration errors, migration notices, and failure
+explanations are written to standard error.
+.SH EXIT STATUS
+.TP
+.B 0
+Successful completion.
+.TP
+.B 1
+Operational or domain failure, such as an unresolved or ambiguous ADR reference,
+unreadable required file, detected destination collision, or failing external
+editor or pager.
+.TP
+.B 2
+Invalid command usage or invalid
+.B adrctl
+configuration, such as an unknown option, malformed argument, unknown
+.B ADRCTL_
+project key, invalid delimiter pair, invalid discovery configuration, or
+unsupported graph format.
+.PP
+A process terminated by a signal may retain Bash's normal signal-derived process
+status.
+.SH EXAMPLES
+Initialize the default
+.B doc/adr
+directory:
+.PP
+.nf
+.RS
+adrctl init
+.RE
+.fi
+.PP
+Create a new ADR:
+.PP
+.nf
+.RS
+adrctl new "Use PostgreSQL for durable application state"
+.RE
+.fi
+.PP
+Create a new ADR that supersedes ADR 12:
+.PP
+.nf
+.RS
+adrctl new -s 12 "Replace the legacy persistence design"
+.RE
+.fi
+.PP
+Add reciprocal relationships between two ADRs:
+.PP
+.nf
+.RS
+adrctl link 12 "Depends on" 7 "Required by"
+.RE
+.fi
+.PP
+Generate a Markdown table of contents:
+.PP
+.nf
+.RS
+adrctl generate toc > adr-index.md
+.RE
+.fi
+.PP
+Generate Graphviz DOT:
+.PP
+.nf
+.RS
+adrctl generate graph > adr-relationships.dot
+.RE
+.fi
+.PP
+Generate raw Mermaid source:
+.PP
+.nf
+.RS
+adrctl generate graph --format mermaid > adr-relationships.mmd
+.RE
+.fi
+.PP
+Operate on a project explicitly rather than using discovery:
+.PP
+.nf
+.RS
+adrctl --project-root /path/to/project list
+.RE
+.fi
+.SH COMPATIBILITY
+.B adrctl
+uses
+.B adr-tools
+3.0.0 as the canonical predecessor compatibility baseline.  Supported predecessor
+workflows are preserved where practical, while documented safety deviations may
+fail earlier or more conservatively.
+.PP
+Notable intentional differences include rejection of ambiguous ADR references,
+strict parsing of project configuration as data, rejection of malformed
+.B -l
+relationship specifications with extra fields, and the absence of external
+.B adr-*
+or
+.B adrctl-*
+plugin discovery.
+.PP
+The canonical product identity remains
+.BR adrctl .
+A filesystem symbolic link named
+.B adr
+may point to the same executable for historical command-name compatibility.
+.SH SEE ALSO
+.BR bash (1),
+.BR git (1),
+.BR man (1)
+.PP
+The normative behavioral specification is maintained in
+.B doc/adrctl-spec.md
+in the adrctl source repository.  Architecture decisions are maintained under
+.BR doc/adr/ .
+.SH LICENSE
+.B adrctl
+is dedicated under CC0 1.0 Universal.  Third-party dependencies retain their own
+licenses.
