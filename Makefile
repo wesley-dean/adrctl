@@ -31,19 +31,24 @@ BASHDEPS_URL := https://github.com/wesley-dean/bashdeps/releases/download/v$(BAS
 BASHDEPS_SHA256 := bb6c807fa12c010950bda06172ac0611d278c57aca1f8352f41502d0d76b4e6c
 MKTEXT_ARTIFACT := $(VENDOR_DIR)/mktext.bash
 BASH_MINIFIER := $(VENDOR_DIR)/bash-minifier.bash
+ADRCTL := $(VENDOR_DIR)/adrctl.bash
 
 TESTS_DIR := tests
 TEST_SCRIPTS := $(TESTS_DIR)/*.bats
 TEST_RESULTS_DIR := test-results
 
 DOXYGEN_BASH_FILTER := $(VENDOR_DIR)/doxygen-bash.awk
+ADR_DIR := doc/adr
+ADR_INDEX_FILE := $(ADR_DIR)/README.md
+ADR_INDEX_INTRO := $(ADR_DIR)/README.intro.md
+ADR_INDEX_OUTRO := $(ADR_DIR)/README.outro.md
 REFERENCE_DOC_DIR := doc/reference
 
 VERSION ?= 0.0.0-dev
 BUILD_COMMIT ?= $(shell git rev-parse --short=12 HEAD 2>/dev/null || printf 'unknown')
 BUILD_DATE ?= $(shell git show -s --format=%cI HEAD 2>/dev/null || printf 'unknown')
 
-.PHONY: all build check checksums clean deps deps-check distclean docs docs-clean FORCE format test test-report verify-bashdeps
+.PHONY: adr-index all build check checksums clean deps deps-check distclean docs docs-clean FORCE format test test-report verify-bashdeps
 
 ## Synchronize dependencies, then build every distribution flavor.
 ##
@@ -231,15 +236,34 @@ test-report: build
 			bats --formatter junit $(TEST_SCRIPTS) >"$(TEST_RESULTS_DIR)/bats-$${name}.xml" || exit $$?; \
 	done
 
+## Generate the ephemeral ADR landing page from maintained framing and ADR source.
+##
+## This target consumes prepared released-adrctl state and never synchronizes
+## dependencies.  A same-directory candidate is replaced only after successful
+## generation.
+adr-index:
+	@test -r "$(ADRCTL)" || { \
+		printf '%s\n' 'Missing documentation dependency vendor/adrctl.bash; run make deps first' >&2; \
+		exit 1; \
+	}
+	@test -r "$(ADR_INDEX_INTRO)" && test -r "$(ADR_INDEX_OUTRO)"
+	@tmp="$(ADR_INDEX_FILE).tmp"; \
+	trap 'rm -f "$$tmp"' EXIT; \
+	bash "$(ADRCTL)" generate toc -i "$(ADR_INDEX_INTRO)" -o "$(ADR_INDEX_OUTRO)" >"$$tmp"; \
+	mv "$$tmp" "$(ADR_INDEX_FILE)"; \
+	trap - EXIT
+
 ## Remove generated Doxygen reference documentation.
 docs-clean:
 	rm -rf "$(REFERENCE_DOC_DIR)"
 
 ## Regenerate browsable Doxygen reference documentation.
 ##
-## The filter is a manifest-managed data artifact, so this consumer target owns
-## the executable mode needed by Doxygen rather than asking bashdeps to infer it.
+## Documentation tooling is manifest-managed.  Dependency preparation completes
+## before the ephemeral ADR main page is generated so parallel Make cannot race
+## TOC generation against dependency synchronization.
 docs: docs-clean deps
+	$(MAKE) --no-print-directory adr-index
 	chmod 0755 "$(DOXYGEN_BASH_FILTER)"
 	mkdir -p "$(REFERENCE_DOC_DIR)"
 	doxygen Doxyfile
@@ -254,3 +278,4 @@ clean:
 	rm -rf "$(DIST_DIR)" "$(TEST_RESULTS_DIR)" "$(VENDOR_DIR)"
 
 distclean: clean docs-clean
+	rm -f "$(ADR_INDEX_FILE)"
