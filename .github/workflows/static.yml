@@ -38,6 +38,10 @@ jobs:
 
       - name: Verify generated documentation is ignored
         run: |
+          test -f doc/adr/README.md
+          grep -F 'ADR-027' doc/adr/README.md
+          git check-ignore -q doc/adr/README.md
+          test -z "$(git status --porcelain --untracked-files=all -- doc/adr/README.md)"
           test -f doc/reference/index.html
           git check-ignore -q doc/reference/index.html
           test -z "$(git status --porcelain --untracked-files=all -- doc/reference)"
