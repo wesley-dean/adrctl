@@ -85,8 +85,9 @@ make all
 bootstraps the pinned `vendor/bashdeps.bash` release artifact directly with
 `curl`, verifies its committed SHA-256 digest, and uses it to synchronize the
 project's `dependencies.txt`.  Bashdeps then materializes the pinned `mktext`,
-Bash Doxygen, and Bash-Minifier artifacts under `vendor/`.  After dependency
-synchronization succeeds, `make all` runs `make build`.
+Bash Doxygen, Bash-Minifier, and released adrctl documentation-tool artifacts
+under `vendor/`.  After dependency synchronization succeeds, `make all` runs
+`make build`.
 
 The current dependency boundary is:
 
@@ -98,6 +99,7 @@ Makefile
             -> vendor/mktext.bash
             -> vendor/doxygen-bash.awk
             -> vendor/bash-minifier.bash
+            -> vendor/adrctl.bash
   -> make build
        -> dist/adrctl.dev.bash
        -> dist/adrctl.bash
@@ -107,8 +109,10 @@ Makefile
 
 The Makefile owns only the bootstrap version, URL, and digest for `bashdeps.bash`.
 Ordinary external dependency declarations live in `dependencies.txt`.  The
-current manifest pins `mktext` v0.0.9, `bash-doxygen` v0.0.6, and Bash-Minifier's
-`Minify.sh` at an immutable upstream commit.
+current manifest pins `mktext` v0.0.9, `bash-doxygen` v0.0.6, Bash-Minifier's
+`Minify.sh` at an immutable upstream commit, and released `adrctl` v0.0.13 for
+ADR landing-page generation.  The released `vendor/adrctl.bash` artifact is
+solely documentation tooling and is not an implementation input to `make build`.
 
 The workflow may also be run explicitly:
 
@@ -551,6 +555,7 @@ make check
 make test
 make test-report
 make format
+make adr-index
 make docs
 make docs-clean
 make checksums
@@ -564,9 +569,11 @@ been prepared and produces all three executable flavors plus their `.sha256`
 files.  `make deps-check` provides the corresponding network-free integrity
 check.
 
-`make docs` synchronizes the manifest-managed Bash Doxygen filter before
-regenerating `doc/reference/`; the generated reference tree remains ignored by
-Git.
+`make adr-index` consumes already-prepared `vendor/adrctl.bash` state and
+atomically generates the ignored `doc/adr/README.md` landing page from maintained
+framing plus the current ADR corpus.  `make docs` synchronizes manifest-managed
+documentation tooling, regenerates that landing page, and then regenerates
+`doc/reference/`.  Both generated documentation surfaces remain ignored by Git.
 
 The behavior suite exercises all three generated executable artifacts rather
 than assuming that valid individual source modules or one generated
@@ -580,7 +587,11 @@ Project documentation is deliberately split by responsibility:
 - `README.md` - human-facing product orientation and use
 - `AGENTS.md` - contributor and coding-agent guidance
 - `doc/adr/` - architecture decisions and rationale
+- `doc/decisions.md` - concise map of the ADR corpus
 - `doc/adrctl-spec.md` - normative behavioral specification
+- `doc/adr/README.intro.md` and `doc/adr/README.outro.md` - maintained framing
+  for the generated ADR landing page
+- `doc/adr/README.md` - generated ADR landing page, ignored by Git
 - `doc/reference/` - generated source-reference documentation, ignored by Git and
   published through GitHub Pages
 - source comments - implementation contracts and invariants
@@ -589,7 +600,8 @@ The initial architecture and compatibility analysis is also retained under
 `doc/` for provenance and future maintenance.
 
 ADR-024 defines the current checksum companion naming and historical-read
-compatibility policy.
+compatibility policy.  ADR-027 defines the ephemeral ADR landing-page and
+released-adrctl documentation-tool boundary.
 
 ## Release Model
 

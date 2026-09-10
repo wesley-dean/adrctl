@@ -1,4 +1,6 @@
-# Doxygen configuration for adrctl Bash source.
+# Doxygen configuration for maintained adrctl source and selected project
+# documentation.  The Makefile prepares manifest-managed documentation tooling and
+# an ephemeral ADR landing page before invoking this configuration.
 
 PROJECT_NAME           = "adrctl"
 PROJECT_BRIEF          = "Compatible and safer Architecture Decision Record tooling"
@@ -13,16 +15,30 @@ GENERATE_MAN            = NO
 GENERATE_RTF           = NO
 GENERATE_XML           = NO
 
-INPUT                  = lib src
+INPUT                  = lib \
+                         src \
+                         doc/adr \
+                         doc/decisions.md \
+                         doc/adrctl-spec.md \
+                         doc/graph-serialization.md \
+                         doc/mktext-delimiter-integration.md \
+                         doc/upstream-adr-tools-compatibility.md
 RECURSIVE              = YES
-FILE_PATTERNS          = *.bash
+FILE_PATTERNS          = *.bash \
+                         *.md
 
 EXCLUDE                = tests \
                          vendor \
-                         dist
+                         dist \
+                         doc/reference \
+                         doc/adr/templates
 EXCLUDE_PATTERNS       = */tests/* \
                          */vendor/* \
-                         */dist/*
+                         */dist/* \
+                         */doc/reference/* \
+                         */doc/adr/templates/* \
+                         */README.intro.md \
+                         */README.outro.md
 
 EXTENSION_MAPPING      = bash=C++
 FILTER_PATTERNS        = *.bash=vendor/doxygen-bash.awk
@@ -36,6 +52,7 @@ HIDE_UNDOC_CLASSES     = YES
 OPTIMIZE_OUTPUT_FOR_C  = YES
 MARKDOWN_SUPPORT       = YES
 AUTOLINK_SUPPORT       = YES
+USE_MDFILE_AS_MAINPAGE = doc/adr/README.md
 
 QUIET                  = YES
 WARNINGS               = YES
