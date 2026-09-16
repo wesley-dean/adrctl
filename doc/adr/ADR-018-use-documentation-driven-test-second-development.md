@@ -40,8 +40,9 @@ complete, the normative documentation SHALL describe the intended resulting
 behavior independently of the test implementation.
 
 Architecture Decision Records SHALL explain durable choices, alternatives, and
-consequences.  New ADRs created during initial development SHALL remain `Proposed`
-until the maintainer intentionally accepts them.
+consequences.  Under ADR-028, every committed ADR uses `Accepted` as its status;
+merging a pull request that contains a new or materially changed ADR is generally
+understood to constitute maintainer acceptance of that ADR.
 
 The normative behavioral specification SHALL describe the current public
 contract and SHALL be updated whenever a command, configuration value, stream,
@@ -90,5 +91,7 @@ documentation-first intent.
 
 - Related to: ADR-014
 - Related to: ADR-017
+- Refined by: ADR-028, which standardizes ADR acceptance and decision-summary
+  maintenance.
 - Adapted from Bootstrap ADR-036, ADR-039, ADR-041, ADR-044, and ADR-046.
 - Adapted from `mktext` ADR-009 and ADR-010.

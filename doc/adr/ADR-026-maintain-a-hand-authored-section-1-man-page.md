@@ -4,7 +4,7 @@ Date: 2026-09-06
 
 ## Status
 
-Proposed
+Accepted
 
 ## Intent and Documentation Posture
 
@@ -201,3 +201,5 @@ Those choices are intentionally outside this documentation-only change.
 - Related to: ADR-018
 - Related to: ADR-019
 - Related to: ADR-020
+- Refined by: ADR-028, which standardizes ADR acceptance and decision-summary
+  maintenance.

@@ -4,6 +4,17 @@ This document provides a concise map of the architectural decisions that govern
 `adrctl`.  It is an orientation aid rather than a substitute for the full ADRs;
 when this summary and an ADR differ, the ADR is authoritative.
 
+## Maintenance
+
+Every ADR in this repository uses `Accepted` as its status.  Merging a pull
+request that contains a new or materially changed ADR is generally understood to
+accept that ADR; supersession, replacement, deprecation, and similar relationships
+belong in the ADR narrative rather than in alternate status values.  Each ADR
+must have a corresponding summary here of generally three to five sentences with
+a direct reference to the ADR.  Adding or materially changing an ADR requires
+reviewing and updating that summary in the same pull request, including earlier
+summaries affected by a superseding or refining decision.
+
 ## ADR-000 - Capability Scope, Epistemic Honesty, and Separation of Concerns
 
 The project treats accuracy, explicit capability boundaries, evidence, and
@@ -222,12 +233,11 @@ generation.  See
 
 ## ADR-026 - Maintain a Hand-Authored Section 1 Man Page
 
-This currently Proposed decision places a hand-authored `adrctl(1)` manual page at
-`doc/adrctl.1` rather than generating it from another documentation source.  The
-behavioral specification remains normative, while the man page is a conventional
-consumer reference and does not introduce installation or packaging behavior on
-its own.  See
-[ADR-026](adr/ADR-026-maintain-a-hand-authored-section-1-man-page.md).
+ADR-026 accepts a hand-authored `adrctl(1)` manual page at `doc/adrctl.1` rather
+than generating it from another documentation source.  The behavioral
+specification remains normative, while the man page is a conventional consumer
+reference and does not introduce installation or packaging behavior on its own.
+See [ADR-026](adr/ADR-026-maintain-a-hand-authored-section-1-man-page.md).
 
 ## ADR-027 - Publish an Ephemeral ADR Landing Page with Released adrctl
 
@@ -238,3 +248,20 @@ prepared dependency state atomically, and `make docs` sequences dependency
 preparation before generation without adding the released tool to the current
 product source closure.  See
 [ADR-027](adr/ADR-027-publish-an-ephemeral-adr-landing-page-with-released-adrctl.md).
+
+## ADR-028: Adopt Shared Coding Standards
+
+The repository adopts the complete verified `coding_standards@v1.0.9` snapshot
+beneath `doc/standards/`, with exact release provenance recorded in
+`.codingstandardrc`.  Applicable imported standards govern where relevant while
+accepted repository-specific ADRs and explicit local policy retain precedence for
+intentional refinements; presence in the snapshot does not itself imply
+applicability.  This decision also establishes `Accepted` as the status of every
+committed ADR, treats pull-request merge as the normal acceptance event, and
+requires `doc/decisions.md` to remain synchronized with the ADR corpus.  Duplicate
+live documentation-standard files are removed where present so shared
+documentation rules have one authoritative managed path, while historical ADR
+text remains historical evidence.  Future standards upgrades replace the
+complete snapshot through normal review rather than local edits or automatic
+synchronization.  See
+[ADR-028](adr/ADR-028-adopt-shared-coding-standards.md).
