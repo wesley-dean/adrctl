@@ -395,8 +395,9 @@ Do not copy an entire ADR into source comments.  Do not invent historical
 rationale when no source supports it.  State uncertainty or add an ADR when a
 new consequential decision is required.
 
-`doc/decisions.md` provides only concise ADR summaries and does not replace
-either the full ADR or local Doxygen contract.
+A project's `doc/adr/README.md`, when present, provides a curated digest of
+currently governing decisions and does not replace either the full ADR or local
+Doxygen contract.
 
 Once created, `doc/bashlog-spec.md` will own current public behavior.  Doxygen
 comments should agree with that specification for public functions while adding
