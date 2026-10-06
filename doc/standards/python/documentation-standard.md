@@ -715,8 +715,9 @@ Do not copy an entire ADR into a docstring.  Do not invent historical rationale
 when no source supports it.  State uncertainty or add an ADR when a new
 consequential decision is required.
 
-A project's `doc/decisions.md`, when present, provides concise ADR summaries and
-does not replace either the full ADR or local source documentation.
+A project's `doc/adr/README.md`, when present, provides a curated digest of
+currently governing decisions and does not replace either the full ADR or local
+source documentation.
 
 ## Generated Reference Documentation
 

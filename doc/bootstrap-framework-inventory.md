@@ -397,11 +397,13 @@ mechanism, may require later configuration updates.
 
 ### Issue and repository-maintenance workflows
 
-**Classification: Inherit as-is initially.**
+**Classification: Inherit with modification.**
 
-Issue-branch creation and stale-issue handling are repository process rather than
-product architecture.  Preserve them unless the maintainer later chooses a
-different project-management policy.
+The adopted shared workflow governance now prefers creating branches when work
+begins, does not require issue numbers in branch names, and permits review-gated
+auto-merge when repository policy allows it.  Remove the inherited automatic
+issue-branch workflow to avoid contradicting that policy.  Stale-issue handling
+remains repository process and may be preserved independently.
 
 ### Bootstrap package-manager E2E workflow
 
