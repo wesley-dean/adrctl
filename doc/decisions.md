@@ -265,3 +265,14 @@ text remains historical evidence.  Future standards upgrades replace the
 complete snapshot through normal review rather than local edits or automatic
 synchronization.  See
 [ADR-028](adr/ADR-028-adopt-shared-coding-standards.md).
+
+## ADR-029: Consolidate Scheduled GitHub Actions Dependency Updates
+
+Routine GitHub Actions version updates are now eligible for one weekly group
+across major, minor, and patch releases, while the existing seven-day cooldown
+remains in force.  Security updates remain independent, and the existing
+non-major auto-merge condition excludes groups containing a major upgrade.
+The change preserves repository governance and leaves open PR limits unchanged
+until backlog cleanup, with high-risk actions requiring targeted review.
+
+See [ADR-029](adr/ADR-029-consolidate-scheduled-github-actions-updates.md).
