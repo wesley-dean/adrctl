@@ -276,3 +276,16 @@ The change preserves repository governance and leaves open PR limits unchanged
 until backlog cleanup, with high-risk actions requiring targeted review.
 
 See [ADR-029](adr/ADR-029-consolidate-scheduled-github-actions-updates.md).
+
+## ADR-030: Migrate Routine Dependency Updates to Centrally Managed Renovate
+
+Routine dependency updates move from repository-specific Dependabot schedules
+to the existing Jenkins-run Renovate service, enrolled through root
+`renovate.json`.  Dependabot security updates and alerts, immutable action
+pins, human approval, required checks, and the identity-scoped Dependabot
+security auto-merge workflow remain preserved.  ADR-030 supersedes ADR-029's
+active routine update provider, weekly grouping requirement, and prohibition
+on a low PR limit while retaining its supply-chain review principles.  Machine
+account write access and effective GitHub protections require operational
+verification after merge.  See
+[ADR-030](adr/ADR-030-migrate-routine-dependency-updates-to-renovate.md).
